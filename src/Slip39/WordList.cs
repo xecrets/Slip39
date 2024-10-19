@@ -50,10 +50,6 @@ public static class WordList
     }
 }
 
-public class MnemonicException : Exception
+public class MnemonicException(string message, Exception innerException) : Exception(message, innerException)
 {
-    public MnemonicException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
 }

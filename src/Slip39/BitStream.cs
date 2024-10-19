@@ -165,7 +165,7 @@ public class BitStream
 	}
 }
 
-class BitStreamReader(BitStream stream)
+public class BitStreamReader(BitStream stream)
 {
 	public BitStreamReader(byte[] buffer) 
 		: this(new BitStream(buffer))
