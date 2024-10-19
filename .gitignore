@@ -1,4 +1,7 @@
-/.idea/**
-/bin/**
-obj/**
 /.session.vim
+.vs
+.vs
+bin
+obj
+*.user
+*.bak

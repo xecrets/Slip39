@@ -1,27 +1,29 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Xunit;
-using uint8 = byte;
-using uint16 = ushort;
-using MemberData = (byte memberThreshold, byte memberIndex, byte[] value);
+
+using Group = (byte memberThreshold, byte count);
+using ShareData = (byte memberIndex, byte[] value);
 
 namespace Slip39;
-
-using Group = (uint8 memberThreshold, uint8 count);
-using ShareData = (uint8 memberIndex, uint8[] value);
-using CommonParameters = (uint16 id, uint8, uint8, Dictionary<uint8, List<MemberData>>);
 
 /// <summary>
 /// A class for implementing Shamir's Secret Sharing with SLIP-39 enhancements.
 /// </summary>
-public record Shamir
+public class Shamir
 {
+    public record MemberData(byte memberThreshold, byte memberIndex, byte[] value);
+
+    public struct CommonParameters
+    {
+        public ushort id;
+        public byte iterationExponent;
+        public byte groupThreshold;
+        public Dictionary<byte, List<MemberData>> groups;
+    }
+
     private const int SECRET_INDEX = 255;
     private const int DIGEST_INDEX = 254;
     internal const int MIN_STRENGTH_BITS = 128;
@@ -42,11 +44,11 @@ public record Shamir
     /// <returns>A list of shares that can be used to reconstruct the secret.</returns>
     /// <exception cref="ArgumentException">Thrown when inputs do not meet the required constraints.</exception>
     public static Share[] Generate(
-        uint8 groupThreshold,
+        byte groupThreshold,
         Group[] groups,
-        uint8[] seed,
+        byte[] seed,
         string passphrase = "",
-        uint8 iterationExponent = 0,
+        byte iterationExponent = 0,
         bool extendable = true)
     {
         var secret = seed;
@@ -55,46 +57,46 @@ public record Shamir
         {
             throw new ArgumentException("master key entropy must be at least 128 bits and multiple of 16 bits");
         }
-        
+
         // Validating group constraints
         if (groupThreshold > MAX_SHARE_COUNT)
         {
             throw new ArgumentException("more than 16 groups are not supported");
         }
-   
+
         if (groupThreshold > groups.Length)
         {
             throw new ArgumentException("group threshold should not exceed number of groups");
         }
-   
-        if (groups.Any(group => group is { memberThreshold: 1, count: > 1}))
+
+        if (groups.Any(group => group is { memberThreshold: 1, count: > 1 }))
         {
             throw new ArgumentException("can only generate one share for threshold = 1");
         }
-   
+
         if (groups.Any(group => group.memberThreshold > group.count))
         {
             throw new ArgumentException("number of shares must not be less than threshold");
         }
-        
+
         // Generate a random identifier
-        var id = (uint16)(BitConverter.ToUInt32(RandomNumberGenerator.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1));
+        var id = (ushort)(BitConverter.ToUInt32(RandomNumberGenerator.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1));
         var shares = new List<Share>();
-        
+
         // Encrypt the secret using the passphrase and identifier
         var encryptedSecret = Encrypt(id, iterationExponent, secret, passphrase, extendable);
-        
+
         // Split the encrypted secret into group shares
         var groupShares = SplitSecret(
-            groupThreshold, 
-            (byte)groups.Length, 
+            groupThreshold,
+            (byte)groups.Length,
             encryptedSecret);
-           
+
         // Split each group share into member shares and create the final share objects
         foreach (var (groupIndex, groupShare) in groupShares)
         {
             var (memberThreshold, count) = groups[groupIndex];
-   
+
             var memberShares = SplitSecret(memberThreshold, count, groupShare);
             foreach (var (memberIndex, value) in memberShares)
             {
@@ -110,7 +112,7 @@ public record Shamir
                      value));
             }
         }
-   
+
         return shares.ToArray();
     }
 
@@ -122,47 +124,47 @@ public record Shamir
     /// <param name="extendable"></param>
     /// <returns>The reconstructed secret.</returns>
     /// <exception cref="ArgumentException">Thrown when the shares are insufficient or invalid.</exception>
-    public static uint8[] Combine(Share[] shares, string passphrase = "")
+    public static byte[] Combine(Share[] shares, string passphrase = "")
     {
         // Preprocess the shares to extract group and member information
-        var (id, iterationExponent, groupThreshold, groups) = Preprocess(shares);
+        CommonParameters common = Preprocess(shares);
 
         // Validating group constraints 
-        if (groups.Count < groupThreshold)
+        if (common.groups.Count < common.groupThreshold)
         {
             throw new ArgumentException("need shares from more groups to reconstruct secret");
         }
 
-        if (groups.Count != groupThreshold)
+        if (common.groups.Count != common.groupThreshold)
         {
             throw new ArgumentException("shares from too many groups");
         }
 
-        if (groups.Any(group => group.Value[0].Item1 != group.Value.Count))
+        if (common.groups.Any(group => group.Value[0].memberThreshold != group.Value.Count))
         {
             throw new ArgumentException("for every group, number of member shares should match member threshold");
         }
 
-        if (groups.Any(group => group.Value.Select(v => v.memberThreshold).ToHashSet().Count > 1))
+        if (common.groups.Any(group => group.Value.Select(v => v.memberThreshold).ToHashSet().Count > 1))
         {
             throw new ArgumentException("member threshold must be the same within a group");
         }
 
         // Recover secrets for each group and then combine them to get the final secret
         var groupSecrets = new List<ShareData>();
-        foreach (var group in groups)
+        foreach (var group in common.groups)
         {
             var recoveredSecret = RecoverSecret(group.Value[0].memberThreshold, group.Value.Select(v => (v.memberIndex, v.value)).ToArray());
             groupSecrets.Add((group.Key, recoveredSecret));
         }
 
-        var finalRecoveredSecret = RecoverSecret(groupThreshold, groupSecrets.ToArray());
-        
+        var finalRecoveredSecret = RecoverSecret(common.groupThreshold, groupSecrets.ToArray());
+
         // Decrypt the secret using the passphrase
-        var decryptedSeed = Decrypt(id, iterationExponent, finalRecoveredSecret, passphrase, shares[0].Extendable);
+        var decryptedSeed = Decrypt(common.id, common.iterationExponent, finalRecoveredSecret, passphrase, shares[0].Extendable);
         return decryptedSeed;
     }
-    
+
     /// <summary>
     /// Preprocesses the shares to group them by group index and validate constraints.
     /// </summary>
@@ -208,7 +210,7 @@ public record Shamir
         }
 
         // Group the shares by group index
-        var groups = new Dictionary<uint8, List<MemberData>>();
+        var groups = new Dictionary<byte, List<MemberData>>();
         foreach (var share in shares)
         {
             if (!groups.TryGetValue(share.GroupIndex, out var value))
@@ -217,15 +219,18 @@ public record Shamir
                 groups[share.GroupIndex] = value;
             }
 
-            value.Add((share.MemberThreshold, share.MemberIndex, share.Value.ToArray()));
+            value.Add(new MemberData(memberThreshold: share.MemberThreshold, memberIndex: share.MemberIndex, value: share.Value.ToArray()));
         }
 
-        return (identifiers.First(),
-            iterationExponents.First(),
-            groupThresholds.First(),
-            groups);
+        return new CommonParameters
+        {
+            id = identifiers.First(),
+            iterationExponent = iterationExponents.First(),
+            groupThreshold = groupThresholds.First(),
+            groups = groups
+        };
     }
-    
+
     /// <summary>
     /// Recovers the secret from a set of shares.
     /// </summary>
@@ -233,7 +238,7 @@ public record Shamir
     /// <param name="shares">The shares to be used for reconstruction.</param>
     /// <returns>The recovered secret.</returns>
     /// <exception cref="ArgumentException">Thrown when the share digests are incorrect.</exception>
-    public static uint8[] RecoverSecret(uint8 threshold, ShareData[] shares)
+    public static byte[] RecoverSecret(byte threshold, ShareData[] shares)
     {
         // If the threshold is 1, simply return the first share's value
         if (threshold == 1)
@@ -254,54 +259,54 @@ public record Shamir
 
         return sharedSecret;
     }
-    
-    private static ShareData[] SplitSecret(uint8 threshold, uint8 shareCount, uint8[] sharedSecret)
+
+    private static ShareData[] SplitSecret(byte threshold, byte shareCount, byte[] sharedSecret)
     {
         if (threshold < 1)
         {
             throw new ArgumentException("sharing threshold must be > 1");
         }
-   
+
         if (shareCount > MAX_SHARE_COUNT)
         {
             throw new ArgumentException("too many shares");
         }
-   
+
         if (threshold > shareCount)
         {
             throw new ArgumentException("number of shares should be at least equal threshold");
         }
-   
+
         var shares = new List<ShareData>();
-   
+
         if (threshold == 1)
         {
-            for (uint8 i = 0; i < shareCount; i++)
+            for (byte i = 0; i < shareCount; i++)
             {
                 shares.Add((i, sharedSecret.ToArray()));
             }
             return shares.ToArray();
         }
-   
+
         int randomSharesCount = Math.Max(threshold - 2, 0);
 
         using var rng = RandomNumberGenerator.Create();
-        for (uint8 i = 0; i < randomSharesCount; i++)
+        for (byte i = 0; i < randomSharesCount; i++)
         {
-            var share = new uint8[sharedSecret.Length];
+            var share = new byte[sharedSecret.Length];
             rng.GetBytes(share);
             shares.Add((i, share));
         }
-   
+
         var baseShares = new List<ShareData>(shares);
-        var randomPart = new uint8[sharedSecret.Length - DIGEST_LENGTH_BYTES];
+        var randomPart = new byte[sharedSecret.Length - DIGEST_LENGTH_BYTES];
         rng.GetBytes(randomPart);
-   
+
         var digest = ShareDigest(randomPart, sharedSecret);
         baseShares.Add((DIGEST_INDEX, Utils.Concat(digest, randomPart)));
         baseShares.Add((SECRET_INDEX, sharedSecret));
-   
-        for (uint8 i = (uint8)randomSharesCount; i < shareCount; i++)
+
+        for (byte i = (byte)randomSharesCount; i < shareCount; i++)
         {
             var interpolatedShare = Interpolate(baseShares.ToArray(), i);
             shares.Add((i, interpolatedShare));
@@ -309,21 +314,21 @@ public record Shamir
 
         return shares.ToArray();
     }
-   
-    private static uint8[] ShareDigest(uint8[] random, uint8[] sharedSecret)
+
+    private static byte[] ShareDigest(byte[] random, byte[] sharedSecret)
     {
         using var hmac = new HMACSHA256(random);
         var hash = hmac.ComputeHash(sharedSecret);
         return hash[..4];
-    } 
-    
+    }
+
     /// <summary>
     /// Interpolates the shares to recover the secret.
     /// </summary>
     /// <param name="shares">The shares used for interpolation.</param>
     /// <param name="x">The index of the value to interpolate (secret or digest).</param>
     /// <returns>The interpolated value.</returns>
-    private static uint8[] Interpolate(ShareData[] shares, uint8 x)
+    private static byte[] Interpolate(ShareData[] shares, byte x)
     {
         var xCoordinates = shares.Select(share => share.memberIndex).ToHashSet();
         if (xCoordinates.Count != shares.Length)
@@ -354,7 +359,7 @@ public record Shamir
             .Select(share => Log[share.memberIndex ^ x])
             .Aggregate(0, (a, v) => a + v);
 
-        var result = new uint8[len];
+        var result = new byte[len];
         foreach (var (i, share) in shares)
         {
             var logBasis = Mod255(
@@ -364,29 +369,29 @@ public record Shamir
 
             for (var k = 0; k < share.Length; k++)
             {
-                result[k] ^= share[k] != 0 ? Exp[Mod255(Log[share[k]] + logBasis)] : (uint8)0;
+                result[k] ^= share[k] != 0 ? Exp[Mod255(Log[share[k]] + logBasis)] : (byte)0;
             }
         }
 
         return result;
-    } 
-    
-    private static uint8[] Encrypt(uint16 identifier, uint8 iterationExponent, uint8[] master, string passphrase, bool extendable) =>
+    }
+
+    private static byte[] Encrypt(ushort identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [0, 1, 2, 3], CheckPassphrase(passphrase), extendable);
-    
-    private static uint8[] Decrypt(uint16 identifier, uint8 iterationExponent, uint8[] master, string passphrase, bool extendable) =>
+
+    private static byte[] Decrypt(ushort identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [3, 2, 1, 0], CheckPassphrase(passphrase), extendable);
-    
+
     private static string CheckPassphrase(string passphrase) =>
         passphrase.Any(Char.IsControl)
             ? throw new NotSupportedException("Passphrase should only contain printable ASCII.")
             : passphrase;
-     
-    private static uint8[] Crypt(
-        uint16 identifier,
-        uint8 iterationExponent,
-        uint8[] masterSecret,
-        uint8[] range,
+
+    private static byte[] Crypt(
+        ushort identifier,
+        byte iterationExponent,
+        byte[] masterSecret,
+        byte[] range,
         string passphrase,
         bool extendable)
     {
@@ -400,17 +405,17 @@ public record Shamir
         }
         return Utils.Concat(right, left);
     }
-    
-    private static uint8[] Feistel(uint16 id, uint8 iterationExponent, uint8 step, uint8[] block, string passphrase, bool extendable)
+
+    private static byte[] Feistel(ushort id, byte iterationExponent, byte step, byte[] block, string passphrase, bool extendable)
     {
         var key = Utils.Concat([step], Encoding.UTF8.GetBytes(passphrase));
-        var saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(uint8) (id >> 8), (uint8) (id & 0xff)]);
+        var saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(byte)(id >> 8), (byte)(id & 0xff)]);
         var salt = Utils.Concat(saltPrefix, block);
         var iters = (BASE_ITERATION_COUNT / ROUND_COUNT) << iterationExponent;
         using var pbkdf2 = new Rfc2898DeriveBytes(key, salt, iters, HashAlgorithmName.SHA256);
-        return pbkdf2.GetBytes(block.Length);        
+        return pbkdf2.GetBytes(block.Length);
     }
-    
+
     private static byte[] Xor(byte[] a, byte[] b)
     {
         byte[] result = new byte[a.Length];
@@ -420,8 +425,8 @@ public record Shamir
         }
         return result;
     }
-    
-    private static readonly uint8[] Exp = [
+
+    private static readonly byte[] Exp = [
         1, 3, 5, 15, 17, 51, 85, 255, 26, 46, 114, 150, 161, 248, 19, 53, 95, 225, 56, 72, 216,
         115, 149, 164, 247, 2, 6, 10, 30, 34, 102, 170, 229, 52, 92, 228, 55, 89, 235, 38, 106,
         190, 217, 112, 144, 171, 230, 49, 83, 245, 4, 12, 20, 60, 68, 204, 79, 209, 104, 184, 211,
@@ -436,7 +441,7 @@ public record Shamir
         227, 62, 66, 198, 81, 243, 14, 18, 54, 90, 238, 41, 123, 141, 140, 143, 138, 133, 148, 167,
         242, 13, 23, 57, 75, 221, 124, 132, 151, 162, 253, 28, 36, 108, 180, 199, 82, 246,
     ];
-    private static readonly uint8[] Log = [
+    private static readonly byte[] Log = [
         0, 0, 25, 1, 50, 2, 26, 198, 75, 199, 27, 104, 51, 238, 223, 3, 100, 4, 224, 14, 52, 141,
         129, 239, 76, 113, 8, 200, 248, 105, 28, 193, 125, 194, 29, 181, 249, 185, 39, 106, 77,
         228, 166, 114, 154, 201, 9, 120, 101, 47, 138, 5, 33, 15, 225, 36, 18, 240, 130, 69, 53,
@@ -454,15 +459,15 @@ public record Shamir
 }
 
 public record Share(
-    uint16 Id, 
+    ushort Id,
     bool Extendable,
-    uint8 IterationExponent, 
-    uint8 GroupIndex, 
-    uint8 GroupThreshold, 
-    uint8 GroupCount, 
-    uint8 MemberIndex, 
-    uint8 MemberThreshold, 
-    uint8[] Value)
+    byte IterationExponent,
+    byte GroupIndex,
+    byte GroupThreshold,
+    byte GroupCount,
+    byte MemberIndex,
+    byte MemberThreshold,
+    byte[] Value)
 {
     private static int Bits2Words(int n) => (n + RADIX_BITS - 1) / RADIX_BITS;
     internal const int ID_LENGTH_BITS = 15;
@@ -472,9 +477,9 @@ public record Share(
     private const int ITERATION_EXP_LENGTH_BITS = 4;
     private const int CHECKSUM_LENGTH_WORDS = 3;
     private static int GROUP_PREFIX_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 1;
-    private static int METADATA_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 2 + CHECKSUM_LENGTH_WORDS; 
+    private static int METADATA_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 2 + CHECKSUM_LENGTH_WORDS;
     private static int MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + Bits2Words(Shamir.MIN_STRENGTH_BITS);
-    
+
     public static Share FromMnemonic(string mnemonic)
     {
         var words = WordList.MnemonicToIndices(mnemonic);
@@ -487,7 +492,7 @@ public record Share(
         var prefixReader = new BitStreamReader(prefix);
         var id = prefixReader.ReadUint16(ID_LENGTH_BITS);
         var extendable = prefixReader.ReadUint8(EXTENDABLE_FLAG_LENGTH_BITS) == 1;
-        
+
         if (Checksum(words, extendable) != 1)
         {
             throw new ArgumentException($"Invalid mnemonic checksum for \"{string.Join(" ", mnemonic.Split().Take(ID_EXP_LENGTH_WORDS + 2))} ...\".");
@@ -504,8 +509,8 @@ public record Share(
         {
             throw new ArgumentException("Invalid padding.");
         }
-        
-        var value = new List<uint8>();
+
+        var value = new List<byte>();
         while (valueReader.CanRead(8))
         {
             value.Add(valueReader.ReadUint8(8));
@@ -513,13 +518,13 @@ public record Share(
 
         return new Share(
             Id: id,
-            Extendable: extendable, 
+            Extendable: extendable,
             IterationExponent: prefixReader.ReadUint8(ITERATION_EXP_LENGTH_BITS),
             GroupIndex: prefixReader.ReadUint8(4),
-            GroupThreshold: (uint8)(prefixReader.ReadUint8(4) + 1),
-            GroupCount: (uint8)(prefixReader.ReadUint8(4) + 1),
+            GroupThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
+            GroupCount: (byte)(prefixReader.ReadUint8(4) + 1),
             MemberIndex: prefixReader.ReadUint8(4),
-            MemberThreshold: (uint8)(prefixReader.ReadUint8(4) + 1),
+            MemberThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
             Value: value.ToArray()
         );
     }
@@ -531,10 +536,10 @@ public record Share(
         prefixWriter.Write(Extendable ? 1ul : 0, EXTENDABLE_FLAG_LENGTH_BITS);
         prefixWriter.Write(IterationExponent, ITERATION_EXP_LENGTH_BITS);
         prefixWriter.Write(GroupIndex, 4);
-        prefixWriter.Write((uint8)(GroupThreshold - 1), 4);
-        prefixWriter.Write((uint8)(GroupCount - 1), 4);
+        prefixWriter.Write((byte)(GroupThreshold - 1), 4);
+        prefixWriter.Write((byte)(GroupCount - 1), 4);
         prefixWriter.Write(MemberIndex, 4);
-        prefixWriter.Write((uint8)(MemberThreshold - 1), 4);
+        prefixWriter.Write((byte)(MemberThreshold - 1), 4);
         var valueWordCount = (8 * Value.Length + RADIX_BITS - 1) / RADIX_BITS;
         var padding = valueWordCount * RADIX_BITS - Value.Length * 8;
 
@@ -546,20 +551,20 @@ public record Share(
         }
 
         var bytes = Utils.Concat(prefixWriter.ToByteArray(), valueWriter.ToByteArray());
-        var words = Utils.Concat(BytesToWords(bytes), new uint16[] {0, 0, 0});
+        var words = Utils.Concat(BytesToWords(bytes), new ushort[] { 0, 0, 0 });
         var chk = Checksum(words, Extendable) ^ 1;
         var len = words.Length;
-        for (var i=0; i< 3; i++)
+        for (var i = 0; i < 3; i++)
         {
-            words[len - 3 + i] = (uint16)((chk >> (RADIX_BITS * (2 - i))) & 1023);
+            words[len - 3 + i] = (ushort)((chk >> (RADIX_BITS * (2 - i))) & 1023);
         }
 
         return string.Join(" ", words.Select(i => wordlist[i]));
     }
 
-    private static uint16[] BytesToWords(uint8[] bytes)
+    private static ushort[] BytesToWords(byte[] bytes)
     {
-        var words = new List<uint16>();
+        var words = new List<ushort>();
         var reader = new BitStreamReader(bytes);
         while (!reader.EndOdStream)
         {
@@ -568,31 +573,31 @@ public record Share(
 
         return words.ToArray();
     }
-    
+
     private static byte[] WordsToBytes(ushort[] words)
     {
         var writer = new BitStreamWriter();
-        
+
         foreach (var word in words)
         {
             writer.Write(word, 10);
         }
-        
+
         return writer.ToByteArray();
     }
 
-    private static readonly uint8[] CustomizationStringOrig = "shamir"u8.ToArray(); 
-    private static readonly uint8[] CustomizationStringExtendable= "shamir_extendable"u8.ToArray(); 
-    private static int Checksum(uint16[] values, bool extendable)
+    private static readonly byte[] CustomizationStringOrig = "shamir"u8.ToArray();
+    private static readonly byte[] CustomizationStringExtendable = "shamir_extendable"u8.ToArray();
+    private static int Checksum(ushort[] values, bool extendable)
     {
         var gen = new[]{
-            0x00E0E040, 0x01C1C080, 0x03838100, 0x07070200, 0x0E0E0009, 
+            0x00E0E040, 0x01C1C080, 0x03838100, 0x07070200, 0x0E0E0009,
             0x1C0C2412, 0x38086C24, 0x3090FC48, 0x21B1F890, 0x03F3F120,
         };
 
         var chk = 1;
         var customizationString = extendable ? CustomizationStringExtendable : CustomizationStringOrig;
-        foreach (var v in customizationString.Select(x => (uint16)x).Concat(values))
+        foreach (var v in customizationString.Select(x => (ushort)x).Concat(values))
         {
             var b = chk >> 20;
             chk = ((chk & 0xFFFFF) << 10) ^ v;
@@ -610,244 +615,4 @@ public static class Utils
 {
     public static T[] Concat<T>(params T[][] arrays) =>
         arrays.SelectMany(x => x).ToArray();
-}
-
-public class ShamirMnemonicTests
-{
-    private static readonly byte[] MS = "ABCDEFGHIJKLMNOP"u8.ToArray();
-
-    [Fact]
-    public void TestBasicSharingRandom()
-    {
-        byte[] secret = new byte[16];
-        new Random().NextBytes(secret);
-        var mnemonics = Shamir.Generate(1, [(3, 5)], secret);
-        Assert.Equal(
-            Shamir.Combine(mnemonics[..3]),
-            Shamir.Combine(mnemonics[2..])
-        );
-    }
-
-    [Fact]
-    public void TestBasicSharingFixed()
-    {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[..3]));
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(mnemonics[..2])
-        );
-    }
-
-    [Fact]
-    public void TestPassphrase()
-    {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR");
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
-    }
-
-    [Fact]
-    public void TestNonExtendable()
-    {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, extendable: false);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
-    }
-
-    [Fact]
-    public void TestIterationExponent()
-    {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR", iterationExponent: 1);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
-
-        mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR", iterationExponent: 2);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
-    }
-
-    [Fact]
-    public void TestGroupSharing()
-    {
-        byte groupThreshold = 2;
-        byte[] groupSizes = [5, 3, 5, 1];
-        byte[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
-        var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
-
-        // Test all valid combinations of mnemonics.
-        foreach (var groups in Combinations(mnemonics.Zip(memberThresholds, (a, b) => (Shares: a, MemberThreshold: b)),
-                     groupThreshold))
-        {
-            foreach (var group1Subset in Combinations(groups[0].Shares, groups[0].MemberThreshold))
-            {
-                foreach (var group2Subset in Combinations(groups[1].Shares, groups[1].MemberThreshold))
-                {
-                    var mnemonicSubset = Utils.Concat(group1Subset, group2Subset);
-                    mnemonicSubset = mnemonicSubset.OrderBy(x => Guid.NewGuid()).ToArray();
-                    Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
-                }
-            }
-        }
-
-        Assert.Equal(MS, Shamir.Combine([mnemonics[2][0], mnemonics[2][2], mnemonics[3][0]]));
-        Assert.Equal(MS, Shamir.Combine([mnemonics[2][3], mnemonics[3][0], mnemonics[2][4]]));
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(Utils.Concat(mnemonics[0][2..], mnemonics[1][..1]))
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(mnemonics[0][1..4])
-        );
-    }
-
-    [Fact]
-    public void TestGroupSharingThreshold1()
-    {
-        uint8 groupThreshold = 1;
-        uint8[] groupSizes = [5, 3, 5, 1];
-        uint8[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
-        var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
-
-        foreach (var (group, memberThreshold) in mnemonics.Zip(memberThresholds, (g, t) => (g, t)))
-        {
-            foreach (var groupSubset in Combinations(group, memberThreshold))
-            {
-                var mnemonicSubset = groupSubset.OrderBy(_ => Guid.NewGuid()).ToArray();
-                Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
-            }
-        }
-    }
-
-    [Fact]
-    public void TestAllGroupsExist()
-    {
-        foreach (var groupThreshold in new uint8[] {1, 2, 5})
-        {
-            var shares = Shamir.Generate(groupThreshold, [(3, 5), (1, 1), (2, 3), (2, 5), (3, 5)], MS);
-            var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
-            Assert.Equal(5, mnemonics.Length);
-            Assert.Equal(19, mnemonics.Sum(g => g.Length));
-        }
-    }
-
-    [Fact]
-    public void TestInvalidSharing()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(1, [(2, 3)], MS.Take(14).ToArray())
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(1, [(2, 3)], MS.Concat(new byte[] {0x58}).ToArray())
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(3, [(3, 5), (2, 5)], MS)
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(0, [(3, 5), (2, 5)], MS)
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(3, 2), (2, 5)], MS)
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(0, 2), (2, 5)], MS)
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(3, 5), (1, 3), (2, 5)], MS)
-        );
-    }
-
-    [Theory]
-    [MemberData(nameof(Slip39TestVector.TestCasesData), MemberType = typeof(Slip39TestVector))]
-    public void TestVectors(Slip39TestVector test)
-    {
-        if (!string.IsNullOrEmpty(test.secretHex))
-        {
-            var shares = test.mnemonics.Select(Share.FromMnemonic).ToArray();
-            var secret = Shamir.Combine(shares, "TREZOR");
-            Assert.Equal(test.secretHex, Convert.ToHexString(secret).ToLower());
-
-            //Assert.Equal(new BIP32Key(secret).ExtendedKey(), xprv);
-        }
-        else
-        {
-            Assert.Throws<ArgumentException>(() =>
-            {
-                var shares = test.mnemonics.Select(Share.FromMnemonic).ToArray();
-                Shamir.Combine(shares);
-                Assert.Fail($"Failed to raise exception for test vector \"{test.description}\".");
-            });
-        }
-    }
-    
-    public static T[][] Combinations<T>(IEnumerable<T> iterable, int r)
-    {
-        IEnumerable<IEnumerable<T>> InternalCombinations()
-        {
-            var pool = iterable.ToArray();
-            int n = pool.Length;
-            if (r > n) yield break;
-
-            var indices = Enumerable.Range(0, r).ToArray();
-
-            yield return indices.Select(i => pool[i]);
-
-            while (true)
-            {
-                int i;
-                for (i = r - 1; i >= 0; i--)
-                {
-                    if (indices[i] != i + n - r)
-                    {
-                        break;
-                    }
-                }
-
-                if (i < 0) yield break;
-
-                indices[i]++;
-                for (int j = i + 1; j < r; j++)
-                {
-                    indices[j] = indices[j - 1] + 1;
-                }
-
-                yield return indices.Select(index => pool[index]);
-            }
-        }
-
-        return InternalCombinations().Select(x => x.ToArray()).ToArray();
-    }
-}
-
-public record Slip39TestVector(string description, string[] mnemonics, string secretHex, string xprv)
-{
-    private static IEnumerable<Slip39TestVector> VectorsData()
-    {
-        string vectorsJson = File.ReadAllText("vectors.json");
-        var vectors = JsonConvert.DeserializeObject<IEnumerable<object[]>>(vectorsJson);
-        foreach (var x in vectors)
-        {
-            yield return new (
-                (string)x[0], // description
-                ((JArray)x[1]).Values<string>().ToArray(), // mnemonics
-                (string)x[2], // secretHex
-                (string)x[3]  // xprv
-            );
-        }
-    }
-
-    private static readonly Slip39TestVector[] TestCases = VectorsData().ToArray();
-
-    public static IEnumerable<object[]> TestCasesData =>
-        TestCases.Select(testCase => new object[] { testCase });
-
-    public override string ToString() => description;
 }
