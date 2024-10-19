@@ -77,7 +77,7 @@ namespace Slip39.Test
                     foreach (var group2Subset in Combinations(groups[1].Shares, groups[1].MemberThreshold))
                     {
                         var mnemonicSubset = Utils.Concat(group1Subset, group2Subset);
-                        mnemonicSubset = mnemonicSubset.OrderBy(x => Guid.NewGuid()).ToArray();
+                        mnemonicSubset = [.. mnemonicSubset.OrderBy(x => Guid.NewGuid())];
                         Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
                     }
                 }
@@ -134,7 +134,7 @@ namespace Slip39.Test
             );
 
             Assert.Throws<ArgumentException>(() =>
-                Shamir.Generate(1, [(2, 3)], MS.Concat(new byte[] { 0x58 }).ToArray())
+                Shamir.Generate(1, [(2, 3)], [.. MS, .. "X"u8.ToArray()])
             );
 
             Assert.Throws<ArgumentException>(() =>
@@ -162,22 +162,22 @@ namespace Slip39.Test
         [MemberData(nameof(Slip39TestVector.TestCasesData), MemberType = typeof(Slip39TestVector))]
         public void TestVectors(Slip39TestVector test)
         {
-            if (!string.IsNullOrEmpty(test.secretHex))
+            if (!string.IsNullOrEmpty(test.SecretHex))
             {
-                var shares = test.mnemonics.Select(Share.FromMnemonic).ToArray();
+                var shares = test.Mnemonics.Select(Share.FromMnemonic).ToArray();
                 var secret = Shamir.Combine(shares, "TREZOR");
-                Assert.Equal(test.secretHex, Convert.ToHexString(secret).ToLower());
+                Assert.Equal(test.SecretHex, Convert.ToHexString(secret).ToLower());
 
                 //Assert.Equal(new BIP32Key(secret).ExtendedKey(), xprv);
             }
             else
             {
-                Assert.Throws<ArgumentException>(() =>
+                Assert.Throws<ArgumentException>((Action)(() =>
                 {
-                    var shares = test.mnemonics.Select(Share.FromMnemonic).ToArray();
-                    Shamir.Combine(shares);
-                    Assert.Fail($"Failed to raise exception for test vector \"{test.description}\".");
-                });
+                    var shares = test.Mnemonics.Select(Share.FromMnemonic).ToArray();
+                    Shamir.Combine((Share[])shares);
+                    Assert.Fail($"Failed to raise exception for test vector \"{test.Description}\".");
+                }));
             }
         }
 
@@ -220,7 +220,7 @@ namespace Slip39.Test
         }
     }
 
-    public record Slip39TestVector(string description, string[] mnemonics, string secretHex, string xprv)
+    public record Slip39TestVector(string Description, string[] Mnemonics, string SecretHex, string Xprv)
     {
         private static IEnumerable<Slip39TestVector> VectorsData()
         {
@@ -230,10 +230,10 @@ namespace Slip39.Test
             foreach (var x in vectors)
             {
                 yield return new(
-                    description: (string)x[0],
-                    mnemonics: ((JArray)x[1]).Values<string>().Cast<string>().ToArray(),
-                    secretHex: (string)x[2],
-                    xprv: (string)x[3]
+                    Description: (string)x[0],
+                    Mnemonics: ((JArray)x[1]).Values<string>().Cast<string>().ToArray(),
+                    SecretHex: (string)x[2],
+                    Xprv: (string)x[3]
                 );
             }
         }
@@ -243,6 +243,6 @@ namespace Slip39.Test
         public static IEnumerable<object[]> TestCasesData =>
             TestCases.Select(testCase => new object[] { testCase });
 
-        public override string ToString() => description;
+        public override string ToString() => Description;
     }
 }

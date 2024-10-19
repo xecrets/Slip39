@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Slip39;
 
-class BitStream
+public class BitStream
 {
 	private byte[] _buffer;
 	private int _writePos;
@@ -33,7 +33,7 @@ class BitStream
 
 	public void WriteBits(ulong data, byte count)
 	{
-		data <<= (64 - count);
+        data <<= 64 - count;
 		while (count >= 8)
 		{
 			var b = (byte)(data >> (64 - 8));
@@ -55,11 +55,11 @@ class BitStream
 	{
 		EnsureCapacity();
 
-		var remainCount = (_writePos % 8);
+        var remainCount = _writePos % 8;
 		var i = _writePos / 8;
 		_buffer[i] |= (byte)(b >> remainCount);
 
-		var written = (8 - remainCount);
+        var written = 8 - remainCount;
 		_writePos += written;
 		_lengthInBits += written;
 
