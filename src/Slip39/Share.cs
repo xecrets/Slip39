@@ -86,10 +86,11 @@ public record Share(
         prefixWriter.Write((byte)(GroupCount - 1), 4);
         prefixWriter.Write(MemberIndex, 4);
         prefixWriter.Write((byte)(MemberThreshold - 1), 4);
+
         var valueWordCount = (8 * Value.Length + RADIX_BITS - 1) / RADIX_BITS;
         var padding = valueWordCount * RADIX_BITS - Value.Length * 8;
-
         var valueWriter = new BitStreamWriter();
+
         valueWriter.Write(0, padding);
         foreach (var b in Value)
         {
