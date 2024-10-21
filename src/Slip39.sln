@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Slip39", "Slip39\Slip39.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Slip39.Test", "Slip39.Test\Slip39.Test.csproj", "{3299707C-9DD9-4E3C-BF17-D13E409E64B1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Slip39.Cli", "Slip39.Cli\Slip39.Cli.csproj", "{3815A973-D4C5-44F5-82EE-91056ECE0676}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{3299707C-9DD9-4E3C-BF17-D13E409E64B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3299707C-9DD9-4E3C-BF17-D13E409E64B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3299707C-9DD9-4E3C-BF17-D13E409E64B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3815A973-D4C5-44F5-82EE-91056ECE0676}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3815A973-D4C5-44F5-82EE-91056ECE0676}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3815A973-D4C5-44F5-82EE-91056ECE0676}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3815A973-D4C5-44F5-82EE-91056ECE0676}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

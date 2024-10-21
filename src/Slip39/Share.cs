@@ -96,7 +96,9 @@ public record Share(
             valueWriter.Write(b, 8);
         }
 
-        var bytes = Utils.Concat(prefixWriter.ToByteArray(), valueWriter.ToByteArray());
+        byte[] prefixBytes = prefixWriter.ToByteArray();
+        byte[] valueBytes = valueWriter.ToByteArray();
+        var bytes = Utils.Concat(prefixBytes, valueBytes);
         var words = Utils.Concat(BytesToWords(bytes), new ushort[] { 0, 0, 0 });
         var chk = Checksum(words, Extendable) ^ 1;
         var len = words.Length;

@@ -7,7 +7,7 @@ namespace Slip39;
 
 public static class WordList
 {
-    private static readonly string[] Wordlist;
+    public static readonly string[] Wordlist;
     private static readonly Dictionary<string, ushort> WordIndexMap;
 
     static WordList()

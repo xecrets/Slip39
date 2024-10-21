@@ -27,6 +27,15 @@ public class Shamir
 
     public static int MinStrengthBits => 128;
 
+    public static Share[] Generate(
+        byte memberThreshold,
+        byte memberCount,
+        byte[] seed,
+        string passphrase = "",
+        byte iterationExponent = 0,
+        bool extendable = true) => 
+            Generate(1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
+
     /// <summary>
     /// Generates SLIP-39 shares from a given seed.
     /// </summary>
