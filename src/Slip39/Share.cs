@@ -115,9 +115,13 @@ public record Share(
     {
         var words = new List<ushort>();
         var reader = new BitStreamReader(bytes);
-        while (!reader.EndOdStream)
+        while (reader.CanRead(10))
         {
             words.Add(reader.ReadUint16(10));
+        }
+        if (!reader.EndOdStream)
+        {
+            words.Add(reader.ReadUint16(reader.Available));
         }
 
         return [.. words];

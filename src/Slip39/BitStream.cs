@@ -180,6 +180,7 @@ public class BitStreamReader(BitStream stream)
 	
 	public ushort ReadUint16(int count) => (ushort)Read(count);
 
+	public int Available => stream.Available;
 	public bool CanRead(int count) => stream.Available >= count;
 	public bool EndOdStream => !CanRead(1);
 }
