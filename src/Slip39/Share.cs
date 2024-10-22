@@ -7,7 +7,7 @@ namespace Slip39;
 public class Share(
     int id,
     bool extendable,
-    byte iterationExponent,
+    int iterationExponent,
     byte groupIndex,
     byte groupThreshold,
     byte groupCount,
@@ -28,7 +28,7 @@ public class Share(
 
     public int Id => id;
     public bool Extendable => extendable;
-    public byte IterationExponent => iterationExponent;
+    public int IterationExponent => iterationExponent;
     public byte GroupIndex => groupIndex;
     public byte GroupThreshold => groupThreshold;
     public byte GroupCount => groupCount;
