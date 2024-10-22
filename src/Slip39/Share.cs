@@ -8,10 +8,10 @@ public class Share(
     int id,
     bool extendable,
     int iterationExponent,
-    byte groupIndex,
+    int groupIndex,
     byte groupThreshold,
     byte groupCount,
-    byte memberIndex,
+    int memberIndex,
     byte memberThreshold,
     byte[] value)
 {
@@ -29,10 +29,10 @@ public class Share(
     public int Id => id;
     public bool Extendable => extendable;
     public int IterationExponent => iterationExponent;
-    public byte GroupIndex => groupIndex;
+    public int GroupIndex => groupIndex;
     public byte GroupThreshold => groupThreshold;
     public byte GroupCount => groupCount;
-    public byte MemberIndex => memberIndex;
+    public int MemberIndex => memberIndex;
     public byte MemberThreshold => memberThreshold;
     public byte[] Value => value;
 

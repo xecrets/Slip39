@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Group = (byte memberThreshold, byte count);
-using ShareData = (byte memberIndex, byte[] value);
+using ShareData = (int memberIndex, byte[] value);
 
 namespace Slip39;
 
@@ -14,9 +14,9 @@ namespace Slip39;
 /// </summary>
 public class Shamir
 {
-    private record MemberData(byte MemberThreshold, byte MemberIndex, byte[] Value);
+    private record MemberData(int MemberThreshold, int MemberIndex, byte[] Value);
 
-    private record CommonParameters(int Id, int IterationExponent, byte GroupThreshold, Dictionary<byte, List<MemberData>> Groups);
+    private record CommonParameters(int Id, int IterationExponent, byte GroupThreshold, Dictionary<int, List<MemberData>> Groups);
 
     private const int SECRET_INDEX = 255;
     private const int DIGEST_INDEX = 254;
@@ -217,8 +217,8 @@ public class Shamir
         }
 
         // Group the shares by group index
-        var groups = new Dictionary<byte, List<MemberData>>();
-        foreach (var share in shares)
+        var groups = new Dictionary<int, List<MemberData>>();
+        foreach (Share share in shares)
         {
             if (!groups.TryGetValue(share.GroupIndex, out var value))
             {
@@ -240,7 +240,7 @@ public class Shamir
     /// <param name="shares">The shares to be used for reconstruction.</param>
     /// <returns>The recovered secret.</returns>
     /// <exception cref="ArgumentException">Thrown when the share digests are incorrect.</exception>
-    public static byte[] RecoverSecret(byte threshold, ShareData[] shares)
+    public static byte[] RecoverSecret(int threshold, ShareData[] shares)
     {
         // If the threshold is 1, simply return the first share's value
         if (threshold == 1)
