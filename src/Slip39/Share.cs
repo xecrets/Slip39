@@ -87,7 +87,7 @@ public class Share(
 
     public string ToMnemonic(string[] wordlist)
     {
-        var prefixWriter = new BitStreamWriter();
+        BitStreamWriter prefixWriter = new();
         prefixWriter.Write(Id, ID_LENGTH_BITS);
         prefixWriter.Write(Extendable ? 1 : 0, EXTENDABLE_FLAG_LENGTH_BITS);
         prefixWriter.Write(IterationExponent, ITERATION_EXP_LENGTH_BITS);
@@ -102,7 +102,7 @@ public class Share(
         BitStreamWriter valueWriter = new();
 
         valueWriter.Write(0, padding);
-        foreach (var b in Value)
+        foreach (byte b in Value)
         {
             valueWriter.Write(b, 8);
         }

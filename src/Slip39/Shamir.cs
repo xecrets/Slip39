@@ -34,7 +34,7 @@ public class Shamir
         byte[] seed,
         string passphrase = "",
         int iterationExponent = 0,
-        bool extendable = true) => 
+        bool extendable = true) =>
             Generate(random, 1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
 
     /// <summary>
@@ -104,7 +104,7 @@ public class Shamir
         {
             var (memberThreshold, count) = groups[groupIndex];
 
-            var memberShares = SplitSecret(random, memberThreshold, count, groupShare);
+            ShareData[] memberShares = SplitSecret(random, memberThreshold, count, groupShare);
             foreach (var (memberIndex, value) in memberShares)
             {
                 shares.Add(new Share(
@@ -158,17 +158,17 @@ public class Shamir
         }
 
         // Recover secrets for each group and then combine them to get the final secret
-        var groupSecrets = new List<ShareData>();
-        foreach (var group in common.Groups)
+        List<ShareData> groupSecrets = [];
+        foreach (KeyValuePair<int, List<MemberData>> group in common.Groups)
         {
-            var recoveredSecret = RecoverSecret(group.Value[0].MemberThreshold, group.Value.Select(v => (v.MemberIndex, v.Value)).ToArray());
+            byte[] recoveredSecret = RecoverSecret(group.Value[0].MemberThreshold, group.Value.Select(v => (v.MemberIndex, v.Value)).ToArray());
             groupSecrets.Add((group.Key, recoveredSecret));
         }
 
-        var finalRecoveredSecret = RecoverSecret(common.GroupThreshold, [.. groupSecrets]);
+        byte[] finalRecoveredSecret = RecoverSecret(common.GroupThreshold, [.. groupSecrets]);
 
         // Decrypt the secret using the passphrase
-        var decryptedSeed = Decrypt(common.Id, common.IterationExponent, finalRecoveredSecret, passphrase, shares[0].Extendable);
+        byte[] decryptedSeed = Decrypt(common.Id, common.IterationExponent, finalRecoveredSecret, passphrase, shares[0].Extendable);
         return decryptedSeed;
     }
 
@@ -186,26 +186,26 @@ public class Shamir
         }
 
         // Ensure all shares belong to the same secret
-        var identifiers = shares.Select(s => s.Id).ToHashSet();
+        HashSet<int> identifiers = shares.Select(s => s.Id).ToHashSet();
         if (identifiers.Count > 1)
         {
             throw new ArgumentException("shares do not belong to the same secret");
         }
 
         // Ensure all shares have the same iteration exponent, group threshold, and group count
-        var iterationExponents = shares.Select(s => s.IterationExponent).ToHashSet();
+        HashSet<int> iterationExponents = shares.Select(s => s.IterationExponent).ToHashSet();
         if (iterationExponents.Count > 1)
         {
             throw new ArgumentException("shares do not have the same iteration exponent");
         }
 
-        var groupThresholds = shares.Select(s => s.GroupThreshold).ToHashSet();
+        HashSet<int> groupThresholds = shares.Select(s => s.GroupThreshold).ToHashSet();
         if (groupThresholds.Count > 1)
         {
             throw new ArgumentException("shares do not have the same group threshold");
         }
 
-        var groupCounts = shares.Select(s => s.GroupCount).ToHashSet();
+        HashSet<int> groupCounts = shares.Select(s => s.GroupCount).ToHashSet();
         if (groupCounts.Count > 1)
         {
             throw new ArgumentException("shares do not have the same group count");
@@ -217,10 +217,10 @@ public class Shamir
         }
 
         // Group the shares by group index
-        var groups = new Dictionary<int, List<MemberData>>();
+        Dictionary<int, List<MemberData>> groups = [];
         foreach (Share share in shares)
         {
-            if (!groups.TryGetValue(share.GroupIndex, out var value))
+            if (!groups.TryGetValue(share.GroupIndex, out List<MemberData>? value))
             {
                 value = [];
                 groups[share.GroupIndex] = value;
@@ -249,8 +249,8 @@ public class Shamir
         }
 
         // Interpolate the shares to recover the shared secret and digest
-        var sharedSecret = Interpolate(shares, SECRET_INDEX);
-        var digestShare = Interpolate(shares, DIGEST_INDEX);
+        byte[] sharedSecret = Interpolate(shares, SECRET_INDEX);
+        byte[] digestShare = Interpolate(shares, DIGEST_INDEX);
 
         // Verify the share digest. (poor-man constant-time comparison)
         return BitConverter.ToUInt32(ShareDigest(digestShare[DIGEST_LENGTH_BYTES..], sharedSecret)) !=
@@ -276,7 +276,7 @@ public class Shamir
             throw new ArgumentException("number of shares should be at least equal threshold");
         }
 
-        var shares = new List<ShareData>();
+        List<ShareData> shares = [];
 
         if (threshold == 1)
         {
@@ -289,24 +289,24 @@ public class Shamir
 
         int randomSharesCount = Math.Max(threshold - 2, 0);
 
-        for (byte i = 0; i < randomSharesCount; i++)
+        for (int i = 0; i < randomSharesCount; i++)
         {
-            var share = new byte[sharedSecret.Length];
+            byte[] share = new byte[sharedSecret.Length];
             random.GetBytes(share);
             shares.Add((i, share));
         }
 
-        var baseShares = new List<ShareData>(shares);
-        var randomPart = new byte[sharedSecret.Length - DIGEST_LENGTH_BYTES];
+        List<ShareData> baseShares = new(shares);
+        byte[] randomPart = new byte[sharedSecret.Length - DIGEST_LENGTH_BYTES];
         random.GetBytes(randomPart);
 
-        var digest = ShareDigest(randomPart, sharedSecret);
+        byte[] digest = ShareDigest(randomPart, sharedSecret);
         baseShares.Add((DIGEST_INDEX, Utils.Concat(digest, randomPart)));
         baseShares.Add((SECRET_INDEX, sharedSecret));
 
-        for (byte i = (byte)randomSharesCount; i < shareCount; i++)
+        for (int i = randomSharesCount; i < shareCount; i++)
         {
-            var interpolatedShare = Interpolate([.. baseShares], i);
+            byte[] interpolatedShare = Interpolate([.. baseShares], i);
             shares.Add((i, interpolatedShare));
         }
 
@@ -315,8 +315,8 @@ public class Shamir
 
     private static byte[] ShareDigest(byte[] random, byte[] sharedSecret)
     {
-        using var hmac = new HMACSHA256(random);
-        var hash = hmac.ComputeHash(sharedSecret);
+        using HMACSHA256 hmac = new(random);
+        byte[] hash = hmac.ComputeHash(sharedSecret);
         return hash[..4];
     }
 
@@ -326,9 +326,9 @@ public class Shamir
     /// <param name="shares">The shares used for interpolation.</param>
     /// <param name="x">The index of the value to interpolate (secret or digest).</param>
     /// <returns>The interpolated value.</returns>
-    private static byte[] Interpolate(ShareData[] shares, byte x)
+    private static byte[] Interpolate(ShareData[] shares, int x)
     {
-        var xCoordinates = shares.Select(share => share.memberIndex).ToHashSet();
+        HashSet<int> xCoordinates = shares.Select(share => share.memberIndex).ToHashSet();
         if (xCoordinates.Count != shares.Length)
         {
             throw new ArgumentException("need unique shares for interpolation");
@@ -337,7 +337,7 @@ public class Shamir
         {
             throw new ArgumentException("need at least one share for interpolation");
         }
-        var len = shares[0].value.Length;
+        int len = shares[0].value.Length;
         if (shares.Any(share => share.value.Length != len))
         {
             throw new ArgumentException("shares should have equal length");
@@ -357,15 +357,15 @@ public class Shamir
             .Select(share => Log[share.memberIndex ^ x])
             .Aggregate(0, (a, v) => a + v);
 
-        var result = new byte[len];
+        byte[] result = new byte[len];
         foreach (var (i, share) in shares)
         {
-            var logBasis = Mod255(
+            int logBasis = Mod255(
                 logProd - Log[i ^ x]
                         - shares.Select(j => Log[j.memberIndex ^ i]).Aggregate(0, (a, v) => a + v)
             );
 
-            for (var k = 0; k < share.Length; k++)
+            for (int k = 0; k < share.Length; k++)
             {
                 result[k] ^= share[k] != 0 ? Exp[Mod255(Log[share[k]] + logBasis)] : (byte)0;
             }
@@ -393,12 +393,12 @@ public class Shamir
         string passphrase,
         bool extendable)
     {
-        var len = masterSecret.Length / 2;
-        var left = masterSecret[..len];
-        var right = masterSecret[len..];
-        foreach (var i in range)
+        int len = masterSecret.Length / 2;
+        byte[] left = masterSecret[..len];
+        byte[] right = masterSecret[len..];
+        foreach (byte i in range)
         {
-            var f = Feistel(identifier, iterationExponent, i, right, passphrase, extendable);
+            byte[] f = Feistel(identifier, iterationExponent, i, right, passphrase, extendable);
             (left, right) = (right, Xor(left, f));
         }
         return Utils.Concat(right, left);
@@ -406,11 +406,11 @@ public class Shamir
 
     private static byte[] Feistel(int id, int iterationExponent, byte step, byte[] block, string passphrase, bool extendable)
     {
-        var key = Utils.Concat([step], Encoding.UTF8.GetBytes(passphrase));
-        var saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(byte)(id >> 8), (byte)(id & 0xff)]);
-        var salt = Utils.Concat(saltPrefix, block);
-        var iters = (BASE_ITERATION_COUNT / ROUND_COUNT) << iterationExponent;
-        using var pbkdf2 = new Rfc2898DeriveBytes(key, salt, iters, HashAlgorithmName.SHA256);
+        byte[] key = Utils.Concat([step], Encoding.UTF8.GetBytes(passphrase));
+        byte[] saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(byte)(id >> 8), (byte)(id & 0xff)]);
+        byte[] salt = Utils.Concat(saltPrefix, block);
+        int iters = (BASE_ITERATION_COUNT / ROUND_COUNT) << iterationExponent;
+        using Rfc2898DeriveBytes pbkdf2 = new(key, salt, iters, HashAlgorithmName.SHA256);
         return pbkdf2.GetBytes(block.Length);
     }
 

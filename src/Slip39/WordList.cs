@@ -20,19 +20,16 @@ public static class WordList
 
     private static string[] LoadWordlist()
     {
-        var wordlistPath = Path.Combine(AppContext.BaseDirectory, "wordlist.txt");
-        var wordlist = File.ReadAllLines(wordlistPath)
+        string wordlistPath = Path.Combine(AppContext.BaseDirectory, "wordlist.txt");
+        string[] wordlist = File.ReadAllLines(wordlistPath)
                            .Select(word => word.Trim())
                            .ToArray();
 
-        if (wordlist.Length != 1024)
-        {
-            throw new InvalidOperationException(
+        return wordlist.Length != 1024
+            ? throw new InvalidOperationException(
                 $"The wordlist should contain 1024 words, but it contains {wordlist.Length} words."
-            );
-        }
-
-        return wordlist;
+            )
+            : wordlist;
     }
 
     public static int[] MnemonicToIndices(string mnemonic)
