@@ -5,7 +5,7 @@ using System.Linq;
 namespace Slip39;
 
 public class Share(
-    ushort id,
+    int id,
     bool extendable,
     byte iterationExponent,
     byte groupIndex,
@@ -38,7 +38,7 @@ public class Share(
 
     public static Share FromMnemonic(string mnemonic)
     {
-        var words = WordList.MnemonicToIndices(mnemonic);
+        int[] words = WordList.MnemonicToIndices(mnemonic);
 
         if (words.Length < MIN_MNEMONIC_LENGTH_WORDS)
         {
@@ -46,8 +46,8 @@ public class Share(
         }
         var prefix = WordsToBytes(words[..(GROUP_PREFIX_LENGTH_WORDS + 1)]);
         var prefixReader = new BitStreamReader(prefix);
-        var id = prefixReader.ReadUint16(ID_LENGTH_BITS);
-        var extendable = prefixReader.ReadUint8(EXTENDABLE_FLAG_LENGTH_BITS) == 1;
+        int id = prefixReader.Read(ID_LENGTH_BITS);
+        var extendable = prefixReader.Read(EXTENDABLE_FLAG_LENGTH_BITS) == 1;
 
         if (Checksum(words, extendable) != 1)
         {
@@ -69,18 +69,18 @@ public class Share(
         var value = new List<byte>();
         while (valueReader.CanRead(8))
         {
-            value.Add(valueReader.ReadUint8(8));
+            value.Add((byte)valueReader.Read(8));
         }
 
         return new Share(
             id: id,
             extendable: extendable,
-            iterationExponent: prefixReader.ReadUint8(ITERATION_EXP_LENGTH_BITS),
-            groupIndex: prefixReader.ReadUint8(4),
-            groupThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
-            groupCount: (byte)(prefixReader.ReadUint8(4) + 1),
-            memberIndex: prefixReader.ReadUint8(4),
-            memberThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
+            iterationExponent: (byte)prefixReader.Read(ITERATION_EXP_LENGTH_BITS),
+            groupIndex: (byte)prefixReader.Read(4),
+            groupThreshold: (byte)(prefixReader.Read(4) + 1),
+            groupCount: (byte)(prefixReader.Read(4) + 1),
+            memberIndex: (byte)prefixReader.Read(4),
+            memberThreshold: (byte)(prefixReader.Read(4) + 1),
             value: [.. value]
         );
     }
@@ -110,8 +110,8 @@ public class Share(
         byte[] prefixBytes = prefixWriter.ToByteArray();
         byte[] valueBytes = valueWriter.ToByteArray();
         var bytes = Utils.Concat(prefixBytes, valueBytes);
-        ushort[] shareWords = BytesToWords(bytes);
-        var words = Utils.Concat(shareWords, new ushort[] { 0, 0, 0 });
+        int[] shareWords = BytesToWords(bytes);
+        var words = Utils.Concat(shareWords, new int[] { 0, 0, 0 });
         var chk = Checksum(words, Extendable) ^ 1;
         var len = words.Length;
         for (var i = 0; i < 3; i++)
@@ -122,19 +122,19 @@ public class Share(
         return string.Join(" ", words.Select(i => wordlist[i]));
     }
 
-    private static ushort[] BytesToWords(byte[] bytes)
+    private static int[] BytesToWords(byte[] bytes)
     {
-        var words = new List<ushort>();
+        var words = new List<int>();
         var reader = new BitStreamReader(bytes);
         while (reader.CanRead(10))
         {
-            words.Add(reader.ReadUint16(10));
+            words.Add(reader.Read(10));
         }
 
         return [.. words];
     }
 
-    private static byte[] WordsToBytes(ushort[] words)
+    private static byte[] WordsToBytes(int[] words)
     {
         var writer = new BitStreamWriter();
 
@@ -148,7 +148,7 @@ public class Share(
 
     private static readonly byte[] CustomizationStringOrig = "shamir"u8.ToArray();
     private static readonly byte[] CustomizationStringExtendable = "shamir_extendable"u8.ToArray();
-    private static int Checksum(ushort[] values, bool extendable)
+    private static int Checksum(int[] values, bool extendable)
     {
         var gen = new[]{
         0x00E0E040, 0x01C1C080, 0x03838100, 0x07070200, 0x0E0E0009,
@@ -157,7 +157,7 @@ public class Share(
 
         var chk = 1;
         var customizationString = extendable ? CustomizationStringExtendable : CustomizationStringOrig;
-        foreach (var v in customizationString.Select(x => (ushort)x).Concat(values))
+        foreach (int v in customizationString.Select(x => (int)x).Concat(values))
         {
             var b = chk >> 20;
             chk = ((chk & 0xFFFFF) << 10) ^ v;

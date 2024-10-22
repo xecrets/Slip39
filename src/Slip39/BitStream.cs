@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace Slip39;
 
@@ -20,7 +19,7 @@ public class BitStream
         _lengthInBits = buffer.Length * 8;
     }
 
-    public void WriteBit(bool bit)
+    private void WriteBit(bool bit)
     {
         EnsureCapacity();
         if (bit)
@@ -81,7 +80,7 @@ public class BitStream
         }
     }
 
-    public bool TryReadBit(out bool bit)
+    private bool TryReadBit(out bool bit)
     {
         bit = false;
         if (_readPos == _lengthInBits)
@@ -96,32 +95,32 @@ public class BitStream
         return true;
     }
 
-    public bool TryReadBits(int count, out ulong bits)
+    public bool TryReadBits(int count, out int bits)
     {
-        var val = 0UL;
+        var val = 0;
         while (count >= 8)
         {
             val <<= 8;
-            if (!TryReadByte(out var readedByte))
+            if (!TryReadByte(out byte readByte))
             {
-                bits = 0U;
+                bits = 0;
                 return false;
             }
-            val |= (ulong)readedByte;
+            val |= readByte;
             count -= 8;
         }
 
         while (count > 0)
         {
             val <<= 1;
-            if (TryReadBit(out var bit))
+            if (TryReadBit(out bool bit))
             {
-                val |= bit ? 1UL : 0UL;
+                val |= bit ? 1 : 0;
                 count--;
             }
             else
             {
-                bits = 0U;
+                bits = 0;
                 return false;
             }
         }
@@ -129,7 +128,7 @@ public class BitStream
         return true;
     }
 
-    public bool TryReadByte(out byte b)
+    private bool TryReadByte(out byte b)
     {
         b = 0;
         if (_readPos == _lengthInBits)
@@ -171,37 +170,4 @@ public class BitStream
             Array.Resize(ref _buffer, _buffer.Length + (4 * 1024));
         }
     }
-}
-
-public class BitStreamReader(BitStream stream)
-{
-    public BitStreamReader(byte[] buffer)
-        : this(new BitStream(buffer))
-    { }
-
-    public ulong Read(int count) =>
-        stream.TryReadBits(count, out var value)
-            ? value
-            : throw new EndOfStreamException("There is not more bits to read.");
-
-    public byte ReadUint8(int count) => (byte)Read(count);
-
-    public ushort ReadUint16(int count) => (ushort)Read(count);
-
-    public int Available => stream.Available;
-    public bool CanRead(int count) => stream.Available >= count;
-    public bool EndOdStream => !CanRead(1);
-}
-
-class BitStreamWriter(BitStream stream)
-{
-    public BitStreamWriter()
-        : this(new BitStream(new byte[100]))
-    { }
-
-    public void Write(long data, int count) =>
-        stream.WriteBits(data, (byte)count);
-
-    public byte[] ToByteArray() =>
-        stream.ToByteArray();
 }

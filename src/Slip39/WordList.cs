@@ -8,14 +8,14 @@ namespace Slip39;
 public static class WordList
 {
     public static readonly string[] Wordlist;
-    private static readonly Dictionary<string, ushort> WordIndexMap;
+    private static readonly Dictionary<string, int> WordIndexMap;
 
     static WordList()
     {
         Wordlist = LoadWordlist();
         WordIndexMap = Wordlist
             .Select((word, i) => new {word, i})
-            .ToDictionary(x => x.word, x => (ushort)x.i);
+            .ToDictionary(x => x.word, x => x.i);
     }
 
     private static string[] LoadWordlist()
@@ -35,7 +35,7 @@ public static class WordList
         return wordlist;
     }
 
-    public static ushort[] MnemonicToIndices(string mnemonic)
+    public static int[] MnemonicToIndices(string mnemonic)
     {
         try
         {
