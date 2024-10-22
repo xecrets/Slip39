@@ -26,7 +26,7 @@ public class Share(
     private static readonly int METADATA_LENGTH_WORDS = GROUP_PREFIX_LENGTH_WORDS + 1 + CHECKSUM_LENGTH_WORDS;
     private static readonly int MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + Bits2Words(Shamir.MinStrengthBits);
 
-    public ushort Id => id;
+    public int Id => id;
     public bool Extendable => extendable;
     public byte IterationExponent => iterationExponent;
     public byte GroupIndex => groupIndex;
@@ -89,7 +89,7 @@ public class Share(
     {
         var prefixWriter = new BitStreamWriter();
         prefixWriter.Write(Id, ID_LENGTH_BITS);
-        prefixWriter.Write(Extendable ? 1ul : 0, EXTENDABLE_FLAG_LENGTH_BITS);
+        prefixWriter.Write(Extendable ? 1 : 0, EXTENDABLE_FLAG_LENGTH_BITS);
         prefixWriter.Write(IterationExponent, ITERATION_EXP_LENGTH_BITS);
         prefixWriter.Write(GroupIndex, 4);
         prefixWriter.Write((byte)(GroupThreshold - 1), 4);

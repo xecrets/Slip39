@@ -16,7 +16,7 @@ public class Shamir
 {
     private record MemberData(byte MemberThreshold, byte MemberIndex, byte[] Value);
 
-    private record CommonParameters(ushort Id, byte IterationExponent, byte GroupThreshold, Dictionary<byte, List<MemberData>> Groups);
+    private record CommonParameters(int Id, byte IterationExponent, byte GroupThreshold, Dictionary<byte, List<MemberData>> Groups);
 
     private const int SECRET_INDEX = 255;
     private const int DIGEST_INDEX = 254;
@@ -377,7 +377,7 @@ public class Shamir
     private static byte[] Encrypt(ushort identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [0, 1, 2, 3], CheckPassphrase(passphrase), extendable);
 
-    private static byte[] Decrypt(ushort identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
+    private static byte[] Decrypt(int identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [3, 2, 1, 0], CheckPassphrase(passphrase), extendable);
 
     private static string CheckPassphrase(string passphrase) =>
@@ -386,7 +386,7 @@ public class Shamir
             : passphrase;
 
     private static byte[] Crypt(
-        ushort identifier,
+        int identifier,
         byte iterationExponent,
         byte[] masterSecret,
         byte[] range,
@@ -404,7 +404,7 @@ public class Shamir
         return Utils.Concat(right, left);
     }
 
-    private static byte[] Feistel(ushort id, byte iterationExponent, byte step, byte[] block, string passphrase, bool extendable)
+    private static byte[] Feistel(int id, byte iterationExponent, byte step, byte[] block, string passphrase, bool extendable)
     {
         var key = Utils.Concat([step], Encoding.UTF8.GetBytes(passphrase));
         var saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(byte)(id >> 8), (byte)(id & 0xff)]);

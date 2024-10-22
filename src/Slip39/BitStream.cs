@@ -31,25 +31,38 @@ public class BitStream
 		_lengthInBits++;
 	}
 
-	public void WriteBits(ulong data, byte count)
+	public void WriteBits(long value, int n)
 	{
-        data <<= 64 - count;
-		while (count >= 8)
+        if (n is > 63 or < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(n), "n must be between 0 and 64");
+        }
+		if (value < 0)
 		{
-			var b = (byte)(data >> (64 - 8));
-			WriteByte(b);
-			data <<= 8;
-			count -= 8;
+			throw new ArgumentOutOfRangeException(nameof(value), "value must be positive.");
 		}
 
-		while (count > 0)
-		{
-			var bit = data >> (64 - 1);
-			WriteBit(bit == 1);
-			data <<= 1;
-			count--;
-		}
-	}
+        int fullBytes = n / 8;
+        int remainingBits = n % 8;
+
+        if (remainingBits > 0)
+        {
+            int startBitPosition = fullBytes * 8 + (remainingBits - 1);
+
+            for (int i = 0; i < remainingBits; i++)
+            {
+                int bitPosition = startBitPosition - i;
+                bool bitValue = ((value >> bitPosition) & 1) == 1;
+                WriteBit(bitValue);
+            }
+        }
+
+        for (int i = fullBytes - 1; i >= 0; i--)
+        {
+            byte currentByte = (byte)((value >> (i * 8)) & 0xFF);
+            WriteByte(currentByte);
+        }
+    }
 
 	public void WriteByte(byte b)
 	{
@@ -191,7 +204,7 @@ class BitStreamWriter(BitStream stream)
 		: this(new BitStream(new byte[100]))
 	{ }
 	
-	public void Write(ulong data, int count) =>
+	public void Write(long data, int count) =>
 		stream.WriteBits(data, (byte) count);
 
 	public byte[] ToByteArray() =>
