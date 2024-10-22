@@ -100,7 +100,8 @@ public record Share(
         byte[] prefixBytes = prefixWriter.ToByteArray();
         byte[] valueBytes = valueWriter.ToByteArray();
         var bytes = Utils.Concat(prefixBytes, valueBytes);
-        var words = Utils.Concat(BytesToWords(bytes), new ushort[] { 0, 0, 0 });
+        ushort[] shareWords = BytesToWords(bytes);
+        var words = Utils.Concat(shareWords, new ushort[] { 0, 0, 0 });
         var chk = Checksum(words, Extendable) ^ 1;
         var len = words.Length;
         for (var i = 0; i < 3; i++)
@@ -118,10 +119,6 @@ public record Share(
         while (reader.CanRead(10))
         {
             words.Add(reader.ReadUint16(10));
-        }
-        if (!reader.EndOdStream)
-        {
-            words.Add(reader.ReadUint16(reader.Available));
         }
 
         return [.. words];
