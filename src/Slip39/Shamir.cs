@@ -57,7 +57,7 @@ public class Shamir
         int iterationExponent = 0,
         bool extendable = true)
     {
-        var secret = seed;
+        byte[] secret = seed;
         // Validating seed strength and format
         if (secret.Length * 8 < MinStrengthBits || secret.Length % 2 != 0)
         {
@@ -86,14 +86,14 @@ public class Shamir
         }
 
         // Generate a random identifier
-        var id = (ushort)(BitConverter.ToUInt32(random.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1));
-        var shares = new List<Share>();
+        int id = BitConverter.ToInt32(random.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1);
+        List<Share> shares = [];
 
         // Encrypt the secret using the passphrase and identifier
-        var encryptedSecret = Encrypt(id, iterationExponent, secret, passphrase, extendable);
+        byte[] encryptedSecret = Encrypt(id, iterationExponent, secret, passphrase, extendable);
 
         // Split the encrypted secret into group shares
-        var groupShares = SplitSecret(
+        ShareData[] groupShares = SplitSecret(
             random,
             groupThreshold,
             (byte)groups.Length,
@@ -374,7 +374,7 @@ public class Shamir
         return result;
     }
 
-    private static byte[] Encrypt(ushort identifier, int iterationExponent, byte[] master, string passphrase, bool extendable) =>
+    private static byte[] Encrypt(int identifier, int iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [0, 1, 2, 3], CheckPassphrase(passphrase), extendable);
 
     private static byte[] Decrypt(int identifier, int iterationExponent, byte[] master, string passphrase, bool extendable) =>

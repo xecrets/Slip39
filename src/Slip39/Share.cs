@@ -44,29 +44,29 @@ public class Share(
         {
             throw new ArgumentException($"Invalid mnemonic length. The length of each mnemonic must be at least {MIN_MNEMONIC_LENGTH_WORDS} words.");
         }
-        var prefix = WordsToBytes(words[..(GROUP_PREFIX_LENGTH_WORDS + 1)]);
-        var prefixReader = new BitStreamReader(prefix);
+        byte[] prefix = WordsToBytes(words[..(GROUP_PREFIX_LENGTH_WORDS + 1)]);
+        BitStreamReader prefixReader = new(prefix);
         int id = prefixReader.Read(ID_LENGTH_BITS);
-        var extendable = prefixReader.Read(EXTENDABLE_FLAG_LENGTH_BITS) == 1;
+        bool extendable = prefixReader.Read(EXTENDABLE_FLAG_LENGTH_BITS) == 1;
 
         if (Checksum(words, extendable) != 1)
         {
             throw new ArgumentException($"Invalid mnemonic checksum for \"{string.Join(" ", mnemonic.Split().Take(GROUP_PREFIX_LENGTH_WORDS + 1))} ...\".");
         }
-        var paddingLen = RADIX_BITS * (words.Length - METADATA_LENGTH_WORDS) % 16;
+        int paddingLen = RADIX_BITS * (words.Length - METADATA_LENGTH_WORDS) % 16;
         if (paddingLen > 8)
         {
             throw new ArgumentException("Invalid mnemonic length.");
         }
 
-        var paddedValue = WordsToBytes(words[(GROUP_PREFIX_LENGTH_WORDS + 1)..^CHECKSUM_LENGTH_WORDS]);
-        var valueReader = new BitStreamReader(paddedValue);
+        byte[] paddedValue = WordsToBytes(words[(GROUP_PREFIX_LENGTH_WORDS + 1)..^CHECKSUM_LENGTH_WORDS]);
+        BitStreamReader valueReader = new(paddedValue);
         if (valueReader.Read(paddingLen) != 0)
         {
             throw new ArgumentException("Invalid padding.");
         }
 
-        var value = new List<byte>();
+        List<byte> value = [];
         while (valueReader.CanRead(8))
         {
             value.Add((byte)valueReader.Read(8));
@@ -97,9 +97,9 @@ public class Share(
         prefixWriter.Write(MemberIndex, 4);
         prefixWriter.Write((byte)(MemberThreshold - 1), 4);
 
-        var valueWordCount = (8 * Value.Length + RADIX_BITS - 1) / RADIX_BITS;
-        var padding = valueWordCount * RADIX_BITS - Value.Length * 8;
-        var valueWriter = new BitStreamWriter();
+        int valueWordCount = (8 * Value.Length + RADIX_BITS - 1) / RADIX_BITS;
+        int padding = valueWordCount * RADIX_BITS - Value.Length * 8;
+        BitStreamWriter valueWriter = new();
 
         valueWriter.Write(0, padding);
         foreach (var b in Value)
@@ -109,14 +109,14 @@ public class Share(
 
         byte[] prefixBytes = prefixWriter.ToByteArray();
         byte[] valueBytes = valueWriter.ToByteArray();
-        var bytes = Utils.Concat(prefixBytes, valueBytes);
+        byte[] bytes = Utils.Concat(prefixBytes, valueBytes);
         int[] shareWords = BytesToWords(bytes);
-        var words = Utils.Concat(shareWords, new int[] { 0, 0, 0 });
-        var chk = Checksum(words, Extendable) ^ 1;
-        var len = words.Length;
-        for (var i = 0; i < 3; i++)
+        int[] words = Utils.Concat(shareWords, [0, 0, 0]);
+        int chk = Checksum(words, Extendable) ^ 1;
+        int len = words.Length;
+        for (int i = 0; i < 3; i++)
         {
-            words[len - 3 + i] = (ushort)((chk >> (RADIX_BITS * (2 - i))) & 1023);
+            words[len - 3 + i] = (chk >> (RADIX_BITS * (2 - i))) & 1023;
         }
 
         return string.Join(" ", words.Select(i => wordlist[i]));
@@ -124,8 +124,8 @@ public class Share(
 
     private static int[] BytesToWords(byte[] bytes)
     {
-        var words = new List<int>();
-        var reader = new BitStreamReader(bytes);
+        List<int> words = [];
+        BitStreamReader reader = new(bytes);
         while (reader.CanRead(10))
         {
             words.Add(reader.Read(10));
@@ -136,9 +136,9 @@ public class Share(
 
     private static byte[] WordsToBytes(int[] words)
     {
-        var writer = new BitStreamWriter();
+        BitStreamWriter writer = new();
 
-        foreach (var word in words)
+        foreach (int word in words)
         {
             writer.Write(word, 10);
         }
@@ -150,18 +150,18 @@ public class Share(
     private static readonly byte[] CustomizationStringExtendable = "shamir_extendable"u8.ToArray();
     private static int Checksum(int[] values, bool extendable)
     {
-        var gen = new[]{
-        0x00E0E040, 0x01C1C080, 0x03838100, 0x07070200, 0x0E0E0009,
-        0x1C0C2412, 0x38086C24, 0x3090FC48, 0x21B1F890, 0x03F3F120,
-    };
+        int[] gen = [
+            0x00E0E040, 0x01C1C080, 0x03838100, 0x07070200, 0x0E0E0009,
+            0x1C0C2412, 0x38086C24, 0x3090FC48, 0x21B1F890, 0x03F3F120,
+        ];
 
-        var chk = 1;
-        var customizationString = extendable ? CustomizationStringExtendable : CustomizationStringOrig;
+        int chk = 1;
+        byte[] customizationString = extendable ? CustomizationStringExtendable : CustomizationStringOrig;
         foreach (int v in customizationString.Select(x => (int)x).Concat(values))
         {
-            var b = chk >> 20;
+            int b = chk >> 20;
             chk = ((chk & 0xFFFFF) << 10) ^ v;
-            for (var i = 0; i < 10; i++)
+            for (int i = 0; i < 10; i++)
             {
                 chk ^= ((b >> i) & 1) != 0 ? gen[i] : 0;
             }

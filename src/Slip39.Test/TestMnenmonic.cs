@@ -9,13 +9,13 @@ public class TestMnenmonic
     private static readonly byte[] _masterSecret = "ABCDEFGHIJKLMNOP"u8.ToArray();
 
     private static readonly string[] mnemonics =
-    {
+    [
         "vocal again academic acne both insect modern making forbid grief flavor faint intimate senior priority satoshi aunt screw finance silent",
         "vocal again academic agree alive race acne husky priority skunk salt device taught hearing mama scout marvel daisy justice wits",
         "vocal again academic amazing ambition window equip paid amuse knife family intimate yoga destroy greatest retreat step finance funding client",
         "vocal again academic arcade breathe domain style greatest work spend secret believe hamster museum elephant render forward reunion hush benefit",
         "vocal again academic axle careful cylinder impact parking shrimp ancient forget element domestic package flavor morning glimpse visual says device"
-    };
+    ];
 
     [Fact]
     public void TestGenerateMnemonics()
