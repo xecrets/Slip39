@@ -4,16 +4,16 @@ using System.Linq;
 
 namespace Slip39;
 
-public record Share(
-    ushort Id,
-    bool Extendable,
-    byte IterationExponent,
-    byte GroupIndex,
-    byte GroupThreshold,
-    byte GroupCount,
-    byte MemberIndex,
-    byte MemberThreshold,
-    byte[] Value)
+public class Share(
+    ushort id,
+    bool extendable,
+    byte iterationExponent,
+    byte groupIndex,
+    byte groupThreshold,
+    byte groupCount,
+    byte memberIndex,
+    byte memberThreshold,
+    byte[] value)
 {
     private static int Bits2Words(int n) => (n + RADIX_BITS - 1) / RADIX_BITS;
     internal const int ID_LENGTH_BITS = 15;
@@ -25,6 +25,16 @@ public record Share(
     private static readonly int GROUP_PREFIX_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 1;
     private static readonly int METADATA_LENGTH_WORDS = GROUP_PREFIX_LENGTH_WORDS + 1 + CHECKSUM_LENGTH_WORDS;
     private static readonly int MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + Bits2Words(Shamir.MinStrengthBits);
+
+    public ushort Id => id;
+    public bool Extendable => extendable;
+    public byte IterationExponent => iterationExponent;
+    public byte GroupIndex => groupIndex;
+    public byte GroupThreshold => groupThreshold;
+    public byte GroupCount => groupCount;
+    public byte MemberIndex => memberIndex;
+    public byte MemberThreshold => memberThreshold;
+    public byte[] Value => value;
 
     public static Share FromMnemonic(string mnemonic)
     {
@@ -63,15 +73,15 @@ public record Share(
         }
 
         return new Share(
-            Id: id,
-            Extendable: extendable,
-            IterationExponent: prefixReader.ReadUint8(ITERATION_EXP_LENGTH_BITS),
-            GroupIndex: prefixReader.ReadUint8(4),
-            GroupThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
-            GroupCount: (byte)(prefixReader.ReadUint8(4) + 1),
-            MemberIndex: prefixReader.ReadUint8(4),
-            MemberThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
-            Value: [.. value]
+            id: id,
+            extendable: extendable,
+            iterationExponent: prefixReader.ReadUint8(ITERATION_EXP_LENGTH_BITS),
+            groupIndex: prefixReader.ReadUint8(4),
+            groupThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
+            groupCount: (byte)(prefixReader.ReadUint8(4) + 1),
+            memberIndex: prefixReader.ReadUint8(4),
+            memberThreshold: (byte)(prefixReader.ReadUint8(4) + 1),
+            value: [.. value]
         );
     }
 

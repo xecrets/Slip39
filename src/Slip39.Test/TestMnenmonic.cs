@@ -26,7 +26,6 @@ public class TestMnenmonic
         Assert.Equal(mnemonics.Length, shares.Length);
         for (int i = 0; i < shares.Length; ++i)
         {
-            //Debug.WriteLine(shares[i].ToMnemonic(WordList.Wordlist));
             Assert.Equal(mnemonics[i], shares[i].ToMnemonic(WordList.Wordlist));
         }
 
