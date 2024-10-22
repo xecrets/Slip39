@@ -28,13 +28,14 @@ public class Shamir
     public static int MinStrengthBits => 128;
 
     public static Share[] Generate(
+        IRandom random,
         byte memberThreshold,
         byte memberCount,
         byte[] seed,
         string passphrase = "",
         byte iterationExponent = 0,
         bool extendable = true) => 
-            Generate(1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
+            Generate(random, 1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
 
     /// <summary>
     /// Generates SLIP-39 shares from a given seed.
@@ -48,6 +49,7 @@ public class Shamir
     /// <returns>A list of shares that can be used to reconstruct the secret.</returns>
     /// <exception cref="ArgumentException">Thrown when inputs do not meet the required constraints.</exception>
     public static Share[] Generate(
+        IRandom random,
         byte groupThreshold,
         Group[] groups,
         byte[] seed,
@@ -84,7 +86,7 @@ public class Shamir
         }
 
         // Generate a random identifier
-        var id = (ushort)(BitConverter.ToUInt32(RandomNumberGenerator.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1));
+        var id = (ushort)(BitConverter.ToUInt32(random.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1));
         var shares = new List<Share>();
 
         // Encrypt the secret using the passphrase and identifier
@@ -92,6 +94,7 @@ public class Shamir
 
         // Split the encrypted secret into group shares
         var groupShares = SplitSecret(
+            random,
             groupThreshold,
             (byte)groups.Length,
             encryptedSecret);
@@ -101,7 +104,7 @@ public class Shamir
         {
             var (memberThreshold, count) = groups[groupIndex];
 
-            var memberShares = SplitSecret(memberThreshold, count, groupShare);
+            var memberShares = SplitSecret(random, memberThreshold, count, groupShare);
             foreach (var (memberIndex, value) in memberShares)
             {
                 shares.Add(new Share(
@@ -256,7 +259,7 @@ public class Shamir
                 : sharedSecret;
     }
 
-    private static ShareData[] SplitSecret(byte threshold, byte shareCount, byte[] sharedSecret)
+    private static ShareData[] SplitSecret(IRandom random, byte threshold, byte shareCount, byte[] sharedSecret)
     {
         if (threshold < 1)
         {
@@ -286,17 +289,16 @@ public class Shamir
 
         int randomSharesCount = Math.Max(threshold - 2, 0);
 
-        using var rng = RandomNumberGenerator.Create();
         for (byte i = 0; i < randomSharesCount; i++)
         {
             var share = new byte[sharedSecret.Length];
-            rng.GetBytes(share);
+            random.GetBytes(share);
             shares.Add((i, share));
         }
 
         var baseShares = new List<ShareData>(shares);
         var randomPart = new byte[sharedSecret.Length - DIGEST_LENGTH_BYTES];
-        rng.GetBytes(randomPart);
+        random.GetBytes(randomPart);
 
         var digest = ShareDigest(randomPart, sharedSecret);
         baseShares.Add((DIGEST_INDEX, Utils.Concat(digest, randomPart)));

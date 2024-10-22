@@ -13,7 +13,7 @@ public class TestShares
 
         byte[] secret = new byte[16];
         random.GetBytes(secret);
-        var mnemonics = Shamir.Generate(1, [(3, 5)], secret);
+        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], secret);
         Assert.Equal(
             Shamir.Combine(mnemonics[..3]),
             Shamir.Combine(mnemonics[2..])
@@ -23,7 +23,9 @@ public class TestShares
     [Fact]
     public void TestBasicSharingFixed()
     {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS);
+        FakeRandom random = new();
+
+        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS);
         Assert.Equal(MS, Shamir.Combine(mnemonics[..3]));
         Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
         Assert.Throws<ArgumentException>(() =>
@@ -34,7 +36,9 @@ public class TestShares
     [Fact]
     public void TestPassphrase()
     {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR");
+        FakeRandom random = new();
+
+        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR");
         Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
         Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
     }
@@ -42,18 +46,22 @@ public class TestShares
     [Fact]
     public void TestNonExtendable()
     {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, extendable: false);
+        FakeRandom random = new();
+
+        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, extendable: false);
         Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
     }
 
     [Fact]
     public void TestIterationExponent()
     {
-        var mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR", iterationExponent: 1);
+        FakeRandom random = new();
+
+        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR", iterationExponent: 1);
         Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
         Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
 
-        mnemonics = Shamir.Generate(1, [(3, 5)], MS, "TREZOR", iterationExponent: 2);
+        mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR", iterationExponent: 2);
         Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
         Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
     }
@@ -61,10 +69,12 @@ public class TestShares
     [Fact]
     public void TestGroupSharing()
     {
+        FakeRandom random = new();
+
         byte groupThreshold = 2;
         byte[] groupSizes = [5, 3, 5, 1];
         byte[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
+        var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
         var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
         // Test all valid combinations of mnemonics.
@@ -97,10 +107,12 @@ public class TestShares
     [Fact]
     public void TestGroupSharingThreshold1()
     {
+        FakeRandom random = new();
+
         byte groupThreshold = 1;
         byte[] groupSizes = [5, 3, 5, 1];
         byte[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
+        var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
         var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
         foreach (var (group, memberThreshold) in mnemonics.Zip(memberThresholds, (g, t) => (g, t)))
@@ -116,9 +128,11 @@ public class TestShares
     [Fact]
     public void TestAllGroupsExist()
     {
+        FakeRandom random = new();
+
         foreach (var groupThreshold in new byte[] { 1, 2, 5 })
         {
-            var shares = Shamir.Generate(groupThreshold, [(3, 5), (1, 1), (2, 3), (2, 5), (3, 5)], MS);
+            var shares = Shamir.Generate(random, groupThreshold, [(3, 5), (1, 1), (2, 3), (2, 5), (3, 5)], MS);
             var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
             Assert.Equal(5, mnemonics.Length);
             Assert.Equal(19, mnemonics.Sum(g => g.Length));
@@ -128,32 +142,34 @@ public class TestShares
     [Fact]
     public void TestInvalidSharing()
     {
+        FakeRandom random = new();
+
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(1, [(2, 3)], MS.Take(14).ToArray())
+            Shamir.Generate(random, 1, [(2, 3)], MS.Take(14).ToArray())
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(1, [(2, 3)], [.. MS, .. "X"u8.ToArray()])
+            Shamir.Generate(random, 1, [(2, 3)], [.. MS, .. "X"u8.ToArray()])
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(3, [(3, 5), (2, 5)], MS)
+            Shamir.Generate(random, 3, [(3, 5), (2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(0, [(3, 5), (2, 5)], MS)
+            Shamir.Generate(random, 0, [(3, 5), (2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(3, 2), (2, 5)], MS)
+            Shamir.Generate(random, 2, [(3, 2), (2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(0, 2), (2, 5)], MS)
+            Shamir.Generate(random, 2, [(0, 2), (2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(2, [(3, 5), (1, 3), (2, 5)], MS)
+            Shamir.Generate(random, 2, [(3, 5), (1, 3), (2, 5)], MS)
         );
     }
 

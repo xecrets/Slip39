@@ -9,6 +9,8 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        StrongRandom random = new();
+
         Option<int> countOption = new(
            name: "--count",
            description: "The number of shares to generate.");
@@ -25,7 +27,7 @@ class Program
 
         splitCommand.SetHandler((c, t) =>
         {
-            Share[] shares = Shamir.Generate((byte)t, (byte)c, "svante          "u8.ToArray());
+            Share[] shares = Shamir.Generate(random, (byte)t, (byte)c, "svante          "u8.ToArray());
             foreach (Share share in shares)
             {
                 Console.WriteLine(share.ToMnemonic(WordList.Wordlist));

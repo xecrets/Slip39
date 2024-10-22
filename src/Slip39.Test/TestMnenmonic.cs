@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Xunit;
+﻿using Xunit;
 
 namespace Slip39.Test;
 
@@ -15,7 +9,8 @@ public class TestMnenmonic
     [Fact]
     public void TestGenerateMnemonics()
     {
-        Share[] shares = Shamir.Generate(3, 5, _masterSecret);
+        FakeRandom random = new();
 
+        Share[] shares = Shamir.Generate(random, 3, 5, _masterSecret);
     }
 }
