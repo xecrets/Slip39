@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-using Group = (byte memberThreshold, byte count);
+using Group = (int memberThreshold, int count);
 using ShareData = (int memberIndex, byte[] value);
 
 namespace Slip39;
@@ -16,7 +16,7 @@ public class Shamir
 {
     private record MemberData(int MemberThreshold, int MemberIndex, byte[] Value);
 
-    private record CommonParameters(int Id, int IterationExponent, byte GroupThreshold, Dictionary<int, List<MemberData>> Groups);
+    private record CommonParameters(int Id, int IterationExponent, int GroupThreshold, Dictionary<int, List<MemberData>> Groups);
 
     private const int SECRET_INDEX = 255;
     private const int DIGEST_INDEX = 254;
@@ -29,11 +29,11 @@ public class Shamir
 
     public static Share[] Generate(
         IRandom random,
-        byte memberThreshold,
-        byte memberCount,
+        int memberThreshold,
+        int memberCount,
         byte[] seed,
         string passphrase = "",
-        byte iterationExponent = 0,
+        int iterationExponent = 0,
         bool extendable = true) => 
             Generate(random, 1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
 
@@ -50,11 +50,11 @@ public class Shamir
     /// <exception cref="ArgumentException">Thrown when inputs do not meet the required constraints.</exception>
     public static Share[] Generate(
         IRandom random,
-        byte groupThreshold,
+        int groupThreshold,
         Group[] groups,
         byte[] seed,
         string passphrase = "",
-        byte iterationExponent = 0,
+        int iterationExponent = 0,
         bool extendable = true)
     {
         var secret = seed;
@@ -259,7 +259,7 @@ public class Shamir
                 : sharedSecret;
     }
 
-    private static ShareData[] SplitSecret(IRandom random, byte threshold, byte shareCount, byte[] sharedSecret)
+    private static ShareData[] SplitSecret(IRandom random, int threshold, int shareCount, byte[] sharedSecret)
     {
         if (threshold < 1)
         {
@@ -374,7 +374,7 @@ public class Shamir
         return result;
     }
 
-    private static byte[] Encrypt(ushort identifier, byte iterationExponent, byte[] master, string passphrase, bool extendable) =>
+    private static byte[] Encrypt(ushort identifier, int iterationExponent, byte[] master, string passphrase, bool extendable) =>
         Crypt(identifier, iterationExponent, master, [0, 1, 2, 3], CheckPassphrase(passphrase), extendable);
 
     private static byte[] Decrypt(int identifier, int iterationExponent, byte[] master, string passphrase, bool extendable) =>

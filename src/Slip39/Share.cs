@@ -9,10 +9,10 @@ public class Share(
     bool extendable,
     int iterationExponent,
     int groupIndex,
-    byte groupThreshold,
-    byte groupCount,
+    int groupThreshold,
+    int groupCount,
     int memberIndex,
-    byte memberThreshold,
+    int memberThreshold,
     byte[] value)
 {
     private static int Bits2Words(int n) => (n + RADIX_BITS - 1) / RADIX_BITS;
@@ -30,10 +30,10 @@ public class Share(
     public bool Extendable => extendable;
     public int IterationExponent => iterationExponent;
     public int GroupIndex => groupIndex;
-    public byte GroupThreshold => groupThreshold;
-    public byte GroupCount => groupCount;
+    public int GroupThreshold => groupThreshold;
+    public int GroupCount => groupCount;
     public int MemberIndex => memberIndex;
-    public byte MemberThreshold => memberThreshold;
+    public int MemberThreshold => memberThreshold;
     public byte[] Value => value;
 
     public static Share FromMnemonic(string mnemonic)

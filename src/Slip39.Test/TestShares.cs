@@ -71,9 +71,9 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        byte groupThreshold = 2;
-        byte[] groupSizes = [5, 3, 5, 1];
-        byte[] memberThresholds = [3, 2, 2, 1];
+        int groupThreshold = 2;
+        int[] groupSizes = [5, 3, 5, 1];
+        int[] memberThresholds = [3, 2, 2, 1];
         var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
         var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
@@ -109,9 +109,9 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        byte groupThreshold = 1;
-        byte[] groupSizes = [5, 3, 5, 1];
-        byte[] memberThresholds = [3, 2, 2, 1];
+        int groupThreshold = 1;
+        int[] groupSizes = [5, 3, 5, 1];
+        int[] memberThresholds = [3, 2, 2, 1];
         var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
         var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
