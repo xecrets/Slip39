@@ -5,208 +5,203 @@ namespace Slip39;
 
 public class BitStream
 {
-	private byte[] _buffer;
-	private int _writePos;
-	private int _readPos;
-	private int _lengthInBits;
+    private byte[] _buffer;
+    private int _writePos;
+    private int _readPos;
+    private int _lengthInBits;
 
-	public BitStream(byte[] buffer)
-	{
-		var newBuffer = new byte[buffer.Length];
-		Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
-		_buffer = newBuffer;
-		_readPos = 0;
-		_writePos = 0;
-		_lengthInBits = buffer.Length * 8;
-	}
+    public BitStream(byte[] buffer)
+    {
+        var newBuffer = new byte[buffer.Length];
+        Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
+        _buffer = newBuffer;
+        _readPos = 0;
+        _writePos = 0;
+        _lengthInBits = buffer.Length * 8;
+    }
 
-	public void WriteBit(bool bit)
-	{
-		EnsureCapacity();
-		if (bit)
-		{
-			_buffer[_writePos / 8] |= (byte)(1 << (8 - (_writePos % 8) - 1));
-		}
-		_writePos++;
-		_lengthInBits++;
-	}
-
-	public void WriteBits(long value, int n)
-	{
-        if (n is > 63 or < 0)
+    public void WriteBit(bool bit)
+    {
+        EnsureCapacity();
+        if (bit)
         {
-            throw new ArgumentOutOfRangeException(nameof(n), "n must be between 0 and 64");
+            _buffer[_writePos / 8] |= (byte)(1 << (8 - (_writePos % 8) - 1));
         }
-		if (value < 0)
-		{
-			throw new ArgumentOutOfRangeException(nameof(value), "value must be positive.");
-		}
+        _writePos++;
+        _lengthInBits++;
+    }
+
+    public void WriteBits(long value, int n)
+    {
+        if (n is < 1 or > 63)
+        {
+            throw new ArgumentOutOfRangeException(nameof(n), "n must be between 1 and 63");
+        }
+        if (value < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), "value must be positive.");
+        }
 
         int fullBytes = n / 8;
-        int remainingBits = n % 8;
+        int fullByteBits = fullBytes * 8;
 
-        if (remainingBits > 0)
+        int bitShift = n;
+        while (bitShift > fullByteBits)
         {
-            int startBitPosition = fullBytes * 8 + (remainingBits - 1);
-
-            for (int i = 0; i < remainingBits; i++)
-            {
-                int bitPosition = startBitPosition - i;
-                bool bitValue = ((value >> bitPosition) & 1) == 1;
-                WriteBit(bitValue);
-            }
+            bool bit = ((value >> --bitShift) & 1) == 1;
+            WriteBit(bit);
         }
 
-        for (int i = fullBytes - 1; i >= 0; i--)
+        while ((bitShift -= 8) >= 0)
         {
-            byte currentByte = (byte)((value >> (i * 8)) & 0xFF);
+            byte currentByte = (byte)(value >> bitShift);
             WriteByte(currentByte);
         }
     }
 
-	public void WriteByte(byte b)
-	{
-		EnsureCapacity();
+    public void WriteByte(byte b)
+    {
+        EnsureCapacity();
 
         var remainCount = _writePos % 8;
-		var i = _writePos / 8;
-		_buffer[i] |= (byte)(b >> remainCount);
+        var i = _writePos / 8;
+        _buffer[i] |= (byte)(b >> remainCount);
 
         var written = 8 - remainCount;
-		_writePos += written;
-		_lengthInBits += written;
+        _writePos += written;
+        _lengthInBits += written;
 
-		if (remainCount > 0)
-		{
-			EnsureCapacity();
+        if (remainCount > 0)
+        {
+            EnsureCapacity();
 
-			_buffer[i + 1] = (byte)(b << (8 - remainCount));
-			_writePos += remainCount;
-			_lengthInBits += remainCount;
-		}
-	}
+            _buffer[i + 1] = (byte)(b << (8 - remainCount));
+            _writePos += remainCount;
+            _lengthInBits += remainCount;
+        }
+    }
 
-	public bool TryReadBit(out bool bit)
-	{
-		bit = false;
-		if (_readPos == _lengthInBits)
-		{
-			return false;
-		}
+    public bool TryReadBit(out bool bit)
+    {
+        bit = false;
+        if (_readPos == _lengthInBits)
+        {
+            return false;
+        }
 
-		var mask = 1 << (8 - (_readPos % 8) - 1);
+        var mask = 1 << (8 - (_readPos % 8) - 1);
 
-		bit = (_buffer[_readPos / 8] & mask) == mask;
-		_readPos++;
-		return true;
-	}
+        bit = (_buffer[_readPos / 8] & mask) == mask;
+        _readPos++;
+        return true;
+    }
 
-	public bool TryReadBits(int count, out ulong bits)
-	{
-		var val = 0UL;
-		while (count >= 8)
-		{
-			val <<= 8;
-			if (!TryReadByte(out var readedByte))
-			{
-				bits = 0U;
-				return false;
-			}
-			val |= (ulong)readedByte;
-			count -= 8;
-		}
+    public bool TryReadBits(int count, out ulong bits)
+    {
+        var val = 0UL;
+        while (count >= 8)
+        {
+            val <<= 8;
+            if (!TryReadByte(out var readedByte))
+            {
+                bits = 0U;
+                return false;
+            }
+            val |= (ulong)readedByte;
+            count -= 8;
+        }
 
-		while (count > 0)
-		{
-			val <<= 1;
-			if (TryReadBit(out var bit))
-			{
-				val |= bit ? 1UL : 0UL;
-				count--;
-			}
-			else
-			{
-				bits = 0U;
-				return false;
-			}
-		}
-		bits = val;
-		return true;
-	}
+        while (count > 0)
+        {
+            val <<= 1;
+            if (TryReadBit(out var bit))
+            {
+                val |= bit ? 1UL : 0UL;
+                count--;
+            }
+            else
+            {
+                bits = 0U;
+                return false;
+            }
+        }
+        bits = val;
+        return true;
+    }
 
-	public bool TryReadByte(out byte b)
-	{
-		b = 0;
-		if (_readPos == _lengthInBits)
-		{
-			return false;
-		}
+    public bool TryReadByte(out byte b)
+    {
+        b = 0;
+        if (_readPos == _lengthInBits)
+        {
+            return false;
+        }
 
-		var i = _readPos / 8;
-		var remainCount = _readPos % 8;
-		b = (byte)(_buffer[i] << remainCount);
+        var i = _readPos / 8;
+        var remainCount = _readPos % 8;
+        b = (byte)(_buffer[i] << remainCount);
 
-		if (remainCount > 0)
-		{
-			if (i + 1 == _buffer.Length)
-			{
-				b = 0;
-				return false;
-			}
-			b |= (byte)(_buffer[i + 1] >> (8 - remainCount));
-		}
-		_readPos += 8;
-		return true;
-	}
+        if (remainCount > 0)
+        {
+            if (i + 1 == _buffer.Length)
+            {
+                b = 0;
+                return false;
+            }
+            b |= (byte)(_buffer[i + 1] >> (8 - remainCount));
+        }
+        _readPos += 8;
+        return true;
+    }
 
-	public byte[] ToByteArray()
-	{
-		var arraySize = (_writePos + 7) / 8;
-		var byteArray = new byte[arraySize];
-		Array.Copy(_buffer, byteArray, arraySize);
-		return byteArray;
-	}
+    public byte[] ToByteArray()
+    {
+        var arraySize = (_writePos + 7) / 8;
+        var byteArray = new byte[arraySize];
+        Array.Copy(_buffer, byteArray, arraySize);
+        return byteArray;
+    }
 
-	public int Available => _lengthInBits - _readPos;
-	
-	private void EnsureCapacity()
-	{
-		if (_writePos / 8 == _buffer.Length)
-		{
-			Array.Resize(ref _buffer, _buffer.Length + (4 * 1024));
-		}
-	}
+    public int Available => _lengthInBits - _readPos;
+
+    private void EnsureCapacity()
+    {
+        if (_writePos / 8 == _buffer.Length)
+        {
+            Array.Resize(ref _buffer, _buffer.Length + (4 * 1024));
+        }
+    }
 }
 
 public class BitStreamReader(BitStream stream)
 {
-	public BitStreamReader(byte[] buffer) 
-		: this(new BitStream(buffer))
-	{ }
+    public BitStreamReader(byte[] buffer)
+        : this(new BitStream(buffer))
+    { }
 
-	public ulong Read(int count) =>
-		stream.TryReadBits(count, out var value)
-			? value
-			: throw new EndOfStreamException("There is not more bits to read.");
+    public ulong Read(int count) =>
+        stream.TryReadBits(count, out var value)
+            ? value
+            : throw new EndOfStreamException("There is not more bits to read.");
 
-	public byte ReadUint8(int count) => (byte)Read(count);
-	
-	public ushort ReadUint16(int count) => (ushort)Read(count);
+    public byte ReadUint8(int count) => (byte)Read(count);
 
-	public int Available => stream.Available;
-	public bool CanRead(int count) => stream.Available >= count;
-	public bool EndOdStream => !CanRead(1);
+    public ushort ReadUint16(int count) => (ushort)Read(count);
+
+    public int Available => stream.Available;
+    public bool CanRead(int count) => stream.Available >= count;
+    public bool EndOdStream => !CanRead(1);
 }
 
 class BitStreamWriter(BitStream stream)
 {
-	public BitStreamWriter() 
-		: this(new BitStream(new byte[100]))
-	{ }
-	
-	public void Write(long data, int count) =>
-		stream.WriteBits(data, (byte) count);
+    public BitStreamWriter()
+        : this(new BitStream(new byte[100]))
+    { }
 
-	public byte[] ToByteArray() =>
-		stream.ToByteArray();
+    public void Write(long data, int count) =>
+        stream.WriteBits(data, (byte)count);
+
+    public byte[] ToByteArray() =>
+        stream.ToByteArray();
 }
