@@ -13,10 +13,10 @@ public class TestShares
 
         byte[] secret = new byte[16];
         random.GetBytes(secret);
-        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], secret);
+        Share[] shares = Shamir.Generate(random, 1, [new Group(3, 5)], secret);
         Assert.Equal(
-            Shamir.Combine(mnemonics[..3]),
-            Shamir.Combine(mnemonics[2..])
+            Shamir.Combine(shares[..3]),
+            Shamir.Combine(shares[2..])
         );
     }
 
@@ -25,11 +25,11 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[..3]));
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
+        Share[] shares = Shamir.Generate(random, 1, [new Group(3, 5)], MS);
+        Assert.Equal(MS, Shamir.Combine(shares[..3]));
+        Assert.Equal(MS, Shamir.Combine(shares[1..4]));
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(mnemonics[..2])
+            Shamir.Combine(shares[..2])
         );
     }
 
@@ -38,9 +38,9 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR");
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
+        Share[] shares = Shamir.Generate(random, 1, [new Group(3, 5)], MS, "TREZOR");
+        Assert.Equal(MS, Shamir.Combine(shares[1..4], "TREZOR"));
+        Assert.NotEqual(MS, Shamir.Combine(shares[1..4]));
     }
 
     [Fact]
@@ -48,8 +48,8 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, extendable: false);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4]));
+        Share[] shares = Shamir.Generate(random, 1, [new Group(3, 5)], MS, extendable: false);
+        Assert.Equal(MS, Shamir.Combine(shares[1..4]));
     }
 
     [Fact]
@@ -57,13 +57,13 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        var mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR", iterationExponent: 1);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
+        Share[] shares = Shamir.Generate(random, 1, [new Group(3, 5)], MS, "TREZOR", iterationExponent: 1);
+        Assert.Equal(MS, Shamir.Combine(shares[1..4], "TREZOR"));
+        Assert.NotEqual(MS, Shamir.Combine(shares[1..4]));
 
-        mnemonics = Shamir.Generate(random, 1, [(3, 5)], MS, "TREZOR", iterationExponent: 2);
-        Assert.Equal(MS, Shamir.Combine(mnemonics[1..4], "TREZOR"));
-        Assert.NotEqual(MS, Shamir.Combine(mnemonics[1..4]));
+        shares = Shamir.Generate(random, 1, [new Group(3, 5)], MS, "TREZOR", iterationExponent: 2);
+        Assert.Equal(MS, Shamir.Combine(shares[1..4], "TREZOR"));
+        Assert.NotEqual(MS, Shamir.Combine(shares[1..4]));
     }
 
     [Fact]
@@ -72,35 +72,34 @@ public class TestShares
         FakeRandom random = new();
 
         int groupThreshold = 2;
-        int[] groupSizes = [5, 3, 5, 1];
-        int[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
-        var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
+        Group[] groups = [new Group(3, 5), new Group(2, 3), new Group(2, 5), new Group(1, 1),];
+        Share[] shares = Shamir.Generate(random, groupThreshold, groups, MS);
+        Share[][] shareGroupings = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
         // Test all valid combinations of mnemonics.
-        foreach (var groups in Combinations(mnemonics.Zip(memberThresholds, (a, b) => (Shares: a, MemberThreshold: b)),
-                     groupThreshold))
+        foreach ((Share[] shares, int memberThreshold)[] combinations in
+            Combinations(shareGroupings.Zip(groups.Select(g => g.memberThreshold)), groupThreshold))
         {
-            foreach (var group1Subset in Combinations(groups[0].Shares, groups[0].MemberThreshold))
+            foreach (Share[] group1Subset in Combinations(combinations[0].shares, combinations[0].memberThreshold))
             {
-                foreach (var group2Subset in Combinations(groups[1].Shares, groups[1].MemberThreshold))
+                foreach (Share[] group2Subset in Combinations(combinations[1].shares, combinations[1].memberThreshold))
                 {
-                    var mnemonicSubset = group1Subset.Concat(group2Subset);
-                    mnemonicSubset = [.. mnemonicSubset.OrderBy(x => Guid.NewGuid())];
-                    Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
+                    Share[] shareSubset = group1Subset.Concat(group2Subset);
+                    shareSubset = [.. shareSubset.OrderBy(x => Guid.NewGuid())];
+                    Assert.Equal(MS, Shamir.Combine(shareSubset));
                 }
             }
         }
 
-        Assert.Equal(MS, Shamir.Combine([mnemonics[2][0], mnemonics[2][2], mnemonics[3][0]]));
-        Assert.Equal(MS, Shamir.Combine([mnemonics[2][3], mnemonics[3][0], mnemonics[2][4]]));
+        Assert.Equal(MS, Shamir.Combine([shareGroupings[2][0], shareGroupings[2][2], shareGroupings[3][0]]));
+        Assert.Equal(MS, Shamir.Combine([shareGroupings[2][3], shareGroupings[3][0], shareGroupings[2][4]]));
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(mnemonics[0][2..].Concat(mnemonics[1][..1]))
+            Shamir.Combine(shareGroupings[0][2..].Concat(shareGroupings[1][..1]))
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(mnemonics[0][1..4])
+            Shamir.Combine(shareGroupings[0][1..4])
         );
     }
 
@@ -112,15 +111,17 @@ public class TestShares
         int groupThreshold = 1;
         int[] groupSizes = [5, 3, 5, 1];
         int[] memberThresholds = [3, 2, 2, 1];
-        var shares = Shamir.Generate(random, groupThreshold, memberThresholds.Zip(groupSizes).ToArray(), MS);
-        var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
-        foreach (var (group, memberThreshold) in mnemonics.Zip(memberThresholds, (g, t) => (g, t)))
+        Group[] groups = [new Group(3, 5), new Group(2, 3), new Group(2, 5), new Group(1, 1),];
+        Share[] shares = Shamir.Generate(random, groupThreshold, groups, MS);
+        Share[][] shareGroupings = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
+
+        foreach ((Share[] groupShares, int memberThreshold) in shareGroupings.Zip(groups.Select(g => g.memberThreshold)))
         {
-            foreach (var groupSubset in Combinations(group, memberThreshold))
+            foreach (Share[] groupSubset in Combinations(groupShares, memberThreshold))
             {
-                var mnemonicSubset = groupSubset.OrderBy(_ => Guid.NewGuid()).ToArray();
-                Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
+                Share[] shareSubset = [.. groupSubset.OrderBy(_ => Guid.NewGuid())];
+                Assert.Equal(MS, Shamir.Combine(shareSubset));
             }
         }
     }
@@ -130,12 +131,14 @@ public class TestShares
     {
         FakeRandom random = new();
 
-        foreach (var groupThreshold in new byte[] { 1, 2, 5 })
+        Group[] groups = [new Group(3, 5), new Group(1, 1), new Group(2, 3), new Group(2, 5), new Group(3, 5),];
+
+        foreach (int groupThreshold in new int[] { 1, 2, 5 })
         {
-            var shares = Shamir.Generate(random, groupThreshold, [(3, 5), (1, 1), (2, 3), (2, 5), (3, 5)], MS);
-            var mnemonics = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
-            Assert.Equal(5, mnemonics.Length);
-            Assert.Equal(19, mnemonics.Sum(g => g.Length));
+            Share[] shares = Shamir.Generate(random, groupThreshold, groups, MS);
+            Share[][] shareGroupings = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
+            Assert.Equal(5, shareGroupings.Length);
+            Assert.Equal(19, shareGroupings.Sum(g => g.Length));
         }
     }
 
@@ -145,43 +148,43 @@ public class TestShares
         FakeRandom random = new();
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 1, [(2, 3)], MS.Take(14).ToArray())
+            Shamir.Generate(random, 1, [new Group(2, 3)], MS.Take(14).ToArray())
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 1, [(2, 3)], [.. MS, .. "X"u8.ToArray()])
+            Shamir.Generate(random, 1, [new Group(2, 3)], [.. MS, .. "X"u8.ToArray()])
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 3, [(3, 5), (2, 5)], MS)
+            Shamir.Generate(random, 3, [new Group(3, 5), new Group(2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 0, [(3, 5), (2, 5)], MS)
+            Shamir.Generate(random, 0, [new Group(3, 5), new Group(2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 2, [(3, 2), (2, 5)], MS)
+            Shamir.Generate(random, 2, [new Group(3, 2), new Group(2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 2, [(0, 2), (2, 5)], MS)
+            Shamir.Generate(random, 2, [new Group(0, 2), new Group(2, 5)], MS)
         );
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Generate(random, 2, [(3, 5), (1, 3), (2, 5)], MS)
+            Shamir.Generate(random, 2, [new Group(3, 5), new Group(1, 3), new Group(2, 5)], MS)
         );
     }
 
-    public static T[][] Combinations<T>(IEnumerable<T> iterable, int r)
+    private static T[][] Combinations<T>(IEnumerable<T> iterable, int r)
     {
         IEnumerable<IEnumerable<T>> InternalCombinations()
         {
-            var pool = iterable.ToArray();
+            T[] pool = iterable.ToArray();
             int n = pool.Length;
             if (r > n) yield break;
 
-            var indices = Enumerable.Range(0, r).ToArray();
+            int[] indices = Enumerable.Range(0, r).ToArray();
 
             yield return indices.Select(i => pool[i]);
 

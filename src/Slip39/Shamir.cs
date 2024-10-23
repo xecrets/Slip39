@@ -4,10 +4,11 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-using Group = (int memberThreshold, int count);
 using ShareData = (int memberIndex, byte[] value);
 
 namespace Slip39;
+
+public record Group(int memberThreshold, int count);
 
 /// <summary>
 /// A class for implementing Shamir's Secret Sharing with SLIP-39 enhancements.
