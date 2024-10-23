@@ -14,16 +14,18 @@ public class Share(
     int memberThreshold,
     byte[] value)
 {
-    private static int Bits2Words(int n) => (n + RADIX_BITS - 1) / RADIX_BITS;
-    internal const int ID_LENGTH_BITS = 15;
+    private const int ID_LENGTH_BITS = 15;
     private const int RADIX_BITS = 10;
-    private static readonly int ID_EXP_LENGTH_WORDS = Bits2Words(ID_LENGTH_BITS + EXTENDABLE_FLAG_LENGTH_BITS + ITERATION_EXP_LENGTH_BITS);
+    private const int ID_EXP_LENGTH_WORDS = (ID_LENGTH_BITS + EXTENDABLE_FLAG_LENGTH_BITS + ITERATION_EXP_LENGTH_BITS + RADIX_BITS - 1) / RADIX_BITS;
     private const int EXTENDABLE_FLAG_LENGTH_BITS = 1;
     private const int ITERATION_EXP_LENGTH_BITS = 4;
     private const int CHECKSUM_LENGTH_WORDS = 3;
-    private static readonly int GROUP_PREFIX_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 1;
-    private static readonly int METADATA_LENGTH_WORDS = GROUP_PREFIX_LENGTH_WORDS + 1 + CHECKSUM_LENGTH_WORDS;
-    private static readonly int MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + Bits2Words(Shamir.MinStrengthBits);
+    private const int GROUP_PREFIX_LENGTH_WORDS = ID_EXP_LENGTH_WORDS + 1;
+    private const int METADATA_LENGTH_WORDS = GROUP_PREFIX_LENGTH_WORDS + 1 + CHECKSUM_LENGTH_WORDS;
+    private const int MIN_STRENGTH_BITS = 128;
+    private const int MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + ((MIN_STRENGTH_BITS + RADIX_BITS - 1) / RADIX_BITS);
+
+    public static int MinStrengthBits => MIN_STRENGTH_BITS;
 
     public int Id => id;
     public bool Extendable => extendable;
@@ -120,6 +122,11 @@ public class Share(
         return string.Join(" ", words.Select(i => wordlist[i]));
     }
 
+    public static int GenerateId(IRandom random)
+    {
+        return BitConverter.ToInt32(random.GetBytes(4)) % ((1 << (ID_LENGTH_BITS + 1)) - 1);
+    }
+
     private static int[] BytesToWords(byte[] bytes)
     {
         List<int> words = [];
@@ -146,6 +153,7 @@ public class Share(
 
     private static readonly byte[] CustomizationStringOrig = "shamir"u8.ToArray();
     private static readonly byte[] CustomizationStringExtendable = "shamir_extendable"u8.ToArray();
+
     private static int Checksum(int[] values, bool extendable)
     {
         int[] gen = [

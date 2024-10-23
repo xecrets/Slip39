@@ -9,7 +9,7 @@ namespace Slip39;
 /// <summary>
 /// A class for implementing Shamir's Secret Sharing with SLIP-0039 enhancements.
 /// </summary>
-public class Shamir
+public static class Shamir
 {
     private record MemberData(int MemberThreshold, int MemberIndex, byte[] Value);
 
@@ -33,8 +33,6 @@ public class Shamir
     private const int BASE_ITERATION_COUNT = 10000;
     private const int ROUND_COUNT = 4;
 
-    public static int MinStrengthBits => 128;
-
     public static Share[] Generate(
         IRandom random,
         int memberThreshold,
@@ -50,7 +48,7 @@ public class Shamir
     /// </summary>
     /// <param name="groupThreshold">The number of groups required to reconstruct the secret.</param>
     /// <param name="groups">Array of tuples where each tuple represents (groupThreshold, shareCount) for each group.</param>
-    /// <param name="seed">The secret to be split into shares.</param>
+    /// <param name="secret">The secret to be split into shares.</param>
     /// <param name="passphrase">The passphrase used for encryption.</param>
     /// <param name="iterationExponent">Exponent to determine the number of iterations for the encryption algorithm.</param>
     /// <param name="extendable"></param>
@@ -60,14 +58,13 @@ public class Shamir
         IRandom random,
         int groupThreshold,
         Group[] groups,
-        byte[] seed,
+        byte[] secret,
         string passphrase = "",
         int iterationExponent = 0,
         bool extendable = true)
     {
-        byte[] secret = seed;
         // Validating seed strength and format
-        if (secret.Length * 8 < MinStrengthBits || secret.Length % 2 != 0)
+        if (secret.Length * 8 < Share.MinStrengthBits || secret.Length % 2 != 0)
         {
             throw new ArgumentException("master key entropy must be at least 128 bits and multiple of 16 bits");
         }
@@ -93,9 +90,7 @@ public class Shamir
             throw new ArgumentException("number of shares must not be less than threshold");
         }
 
-        // Generate a random identifier
-        int id = BitConverter.ToInt32(random.GetBytes(4)) % ((1 << (Share.ID_LENGTH_BITS + 1)) - 1);
-        List<Share> shares = [];
+        int id = Share.GenerateId(random);
 
         // Encrypt the secret using the passphrase and identifier
         byte[] encryptedSecret = Encrypt(id, iterationExponent, secret, passphrase, extendable);
@@ -108,6 +103,7 @@ public class Shamir
             encryptedSecret);
 
         // Split each group share into member shares and create the final second level share objects
+        List<Share> shares = [];
         foreach (ShareData groupShare in groupShares)
         {
             Group group = groups[groupShare.Index];
