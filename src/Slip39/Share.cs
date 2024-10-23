@@ -9,8 +9,7 @@ public class Share(
     bool extendable,
     int iterationExponent,
     int groupIndex,
-    int groupThreshold,
-    int groupCount,
+    Group group,
     int memberIndex,
     int memberThreshold,
     byte[] value)
@@ -30,8 +29,8 @@ public class Share(
     public bool Extendable => extendable;
     public int IterationExponent => iterationExponent;
     public int GroupIndex => groupIndex;
-    public int GroupThreshold => groupThreshold;
-    public int GroupCount => groupCount;
+    public int GroupThreshold => group.MemberThreshold;
+    public int GroupCount => group.Count;
     public int MemberIndex => memberIndex;
     public int MemberThreshold => memberThreshold;
     public byte[] Value => value;
@@ -75,12 +74,11 @@ public class Share(
         return new Share(
             id: id,
             extendable: extendable,
-            iterationExponent: (byte)prefixReader.Read(ITERATION_EXP_LENGTH_BITS),
-            groupIndex: (byte)prefixReader.Read(4),
-            groupThreshold: (byte)(prefixReader.Read(4) + 1),
-            groupCount: (byte)(prefixReader.Read(4) + 1),
-            memberIndex: (byte)prefixReader.Read(4),
-            memberThreshold: (byte)(prefixReader.Read(4) + 1),
+            iterationExponent: prefixReader.Read(ITERATION_EXP_LENGTH_BITS),
+            groupIndex: prefixReader.Read(4),
+            new Group(prefixReader.Read(4) + 1, prefixReader.Read(4) + 1),
+            memberIndex: prefixReader.Read(4),
+            memberThreshold: prefixReader.Read(4) + 1,
             value: [.. value]
         );
     }
