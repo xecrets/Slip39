@@ -7,13 +7,14 @@ namespace Slip39;
 
 public static class WordList
 {
-    public static readonly string[] Wordlist;
+    public static readonly string[] Words;
+
     private static readonly Dictionary<string, int> WordIndexMap;
 
     static WordList()
     {
-        Wordlist = LoadWordlist();
-        WordIndexMap = Wordlist
+        Words = LoadWordlist();
+        WordIndexMap = Words
             .Select((word, i) => new {word, i})
             .ToDictionary(x => x.word, x => x.i);
     }

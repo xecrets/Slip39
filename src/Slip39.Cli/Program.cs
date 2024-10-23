@@ -30,7 +30,7 @@ class Program
             Share[] shares = Shamir.Generate(random, (byte)t, (byte)c, "svante          "u8.ToArray());
             foreach (Share share in shares)
             {
-                Console.WriteLine(share.ToMnemonic(WordList.Wordlist));
+                Console.WriteLine(share.ToMnemonic());
             }
         }, countOption, thresholdOption);
 

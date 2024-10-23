@@ -4,15 +4,7 @@ using System.Linq;
 
 namespace Slip39;
 
-public class Share(
-    int id,
-    bool extendable,
-    int iterationExponent,
-    int groupIndex,
-    Group group,
-    int memberIndex,
-    int memberThreshold,
-    byte[] value)
+public class Share
 {
     private const int ID_LENGTH_BITS = 15;
     private const int RADIX_BITS = 10;
@@ -27,15 +19,35 @@ public class Share(
 
     public static int MinStrengthBits => MIN_STRENGTH_BITS;
 
-    public int Id => id;
-    public bool Extendable => extendable;
-    public int IterationExponent => iterationExponent;
-    public int GroupIndex => groupIndex;
-    public int GroupThreshold => group.MemberThreshold;
-    public int GroupCount => group.Count;
-    public int MemberIndex => memberIndex;
-    public int MemberThreshold => memberThreshold;
-    public byte[] Value => value;
+    public int Id { get; }
+    public bool Extendable { get; }
+    public int IterationExponent { get; }
+    public int GroupIndex { get; }
+    public int GroupThreshold { get; }
+    public int GroupCount { get; }
+    public int MemberIndex { get; }
+    public int MemberThreshold { get; }
+    public byte[] Value { get; }
+
+    private Share(int id, bool extendable, int iterationExponent, int groupIndex, Group group,
+        int memberIndex, int memberThreshold, byte[] value)
+    {
+        Id = id;
+        Extendable = extendable;
+        IterationExponent = iterationExponent;
+        GroupIndex = groupIndex;
+        GroupThreshold = group.MemberThreshold;
+        GroupCount = group.Count;
+        MemberIndex = memberIndex;
+        MemberThreshold = memberThreshold;
+        Value = value;
+    }
+
+    public static Share Create(int id, bool extendable, int iterationExponent, int groupIndex, Group group,
+        int memberIndex, int memberThreshold, byte[] value)
+    {
+        return new Share(id, extendable, iterationExponent, groupIndex, group, memberIndex, memberThreshold, value);
+    }
 
     public static Share FromMnemonic(string mnemonic)
     {
@@ -85,7 +97,7 @@ public class Share(
         );
     }
 
-    public string ToMnemonic(string[] wordlist)
+    public string ToMnemonic()
     {
         BitStreamWriter prefixWriter = new();
         prefixWriter.Write(Id, ID_LENGTH_BITS);
@@ -119,7 +131,7 @@ public class Share(
             words[len - 3 + i] = (chk >> (RADIX_BITS * (2 - i))) & 1023;
         }
 
-        return string.Join(" ", words.Select(i => wordlist[i]));
+        return string.Join(" ", words.Select(i => WordList.Words[i]));
     }
 
     public static int GenerateId(IRandom random)

@@ -111,7 +111,7 @@ public static class Shamir
             ShareData[] memberShares = SplitSecret(random, group.MemberThreshold, group.Count, groupShare.Value);
             foreach (ShareData memberShare in memberShares)
             {
-                shares.Add(new Share(
+                shares.Add(Share.Create(
                      id,
                      extendable,
                      iterationExponent,
