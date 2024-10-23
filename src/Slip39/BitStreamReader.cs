@@ -10,7 +10,7 @@ public class BitStreamReader(BitStream stream)
     }
 
     public int Read(int count) =>
-        stream.TryReadBits(count, out var value)
+        stream.TryReadBits(count, out int value)
             ? value
             : throw new EndOfStreamException("There are no more bits to read.");
 

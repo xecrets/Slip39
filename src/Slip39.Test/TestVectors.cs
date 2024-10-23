@@ -23,7 +23,7 @@ public class TestVectors
         {
             Assert.Throws<ArgumentException>((Action)(() =>
             {
-                var shares = test.Mnemonics.Select(Share.FromMnemonic).ToArray();
+                Share[] shares = test.Mnemonics.Select(Share.FromMnemonic).ToArray();
                 Shamir.Combine((Share[])shares);
                 Assert.Fail($"Failed to raise exception for test vector \"{test.Description}\".");
             }));
@@ -36,9 +36,9 @@ public record Slip39TestVector(string Description, string[] Mnemonics, string Se
     private static IEnumerable<Slip39TestVector> VectorsData()
     {
         string vectorsJson = File.ReadAllText("vectors.json");
-        var vectors = JsonConvert.DeserializeObject<IEnumerable<object[]>>(vectorsJson)
+        IEnumerable<object[]> vectors = JsonConvert.DeserializeObject<IEnumerable<object[]>>(vectorsJson)
             ?? throw new InvalidOperationException("Deserialization of 'vectors.json' failed.");
-        foreach (var x in vectors)
+        foreach (object[] x in vectors)
         {
             yield return new(
                 Description: (string)x[0],

@@ -11,7 +11,7 @@ public class BitStream
 
     public BitStream(byte[] buffer)
     {
-        var newBuffer = new byte[buffer.Length];
+        byte[] newBuffer = new byte[buffer.Length];
         Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
         _buffer = newBuffer;
         _readPos = 0;
@@ -62,11 +62,11 @@ public class BitStream
     {
         EnsureCapacity();
 
-        var remainCount = _writePos % 8;
-        var i = _writePos / 8;
+        int remainCount = _writePos % 8;
+        int i = _writePos / 8;
         _buffer[i] |= (byte)(b >> remainCount);
 
-        var written = 8 - remainCount;
+        int written = 8 - remainCount;
         _writePos += written;
         _lengthInBits += written;
 
@@ -88,7 +88,7 @@ public class BitStream
             return false;
         }
 
-        var mask = 1 << (8 - (_readPos % 8) - 1);
+        int mask = 1 << (8 - (_readPos % 8) - 1);
 
         bit = (_buffer[_readPos / 8] & mask) == mask;
         _readPos++;
@@ -97,7 +97,7 @@ public class BitStream
 
     public bool TryReadBits(int count, out int bits)
     {
-        var val = 0;
+        int val = 0;
         while (count >= 8)
         {
             val <<= 8;
@@ -136,8 +136,8 @@ public class BitStream
             return false;
         }
 
-        var i = _readPos / 8;
-        var remainCount = _readPos % 8;
+        int i = _readPos / 8;
+        int remainCount = _readPos % 8;
         b = (byte)(_buffer[i] << remainCount);
 
         if (remainCount > 0)
@@ -155,8 +155,8 @@ public class BitStream
 
     public byte[] ToByteArray()
     {
-        var arraySize = (_writePos + 7) / 8;
-        var byteArray = new byte[arraySize];
+        int arraySize = (_writePos + 7) / 8;
+        byte[] byteArray = new byte[arraySize];
         Array.Copy(_buffer, byteArray, arraySize);
         return byteArray;
     }

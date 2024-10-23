@@ -55,14 +55,14 @@ public class Share(
         int paddingLen = RADIX_BITS * (words.Length - METADATA_LENGTH_WORDS) % 16;
         if (paddingLen > 8)
         {
-            throw new ArgumentException("Invalid mnemonic length.");
+            throw new ArgumentException("Invalid padding length.");
         }
 
         byte[] paddedValue = WordsToBytes(words[(GROUP_PREFIX_LENGTH_WORDS + 1)..^CHECKSUM_LENGTH_WORDS]);
         BitStreamReader valueReader = new(paddedValue);
         if (valueReader.Read(paddingLen) != 0)
         {
-            throw new ArgumentException("Invalid padding.");
+            throw new ArgumentException("Invalid padding value, it should be all zeroes.");
         }
 
         List<byte> value = [];
@@ -90,10 +90,10 @@ public class Share(
         prefixWriter.Write(Extendable ? 1 : 0, EXTENDABLE_FLAG_LENGTH_BITS);
         prefixWriter.Write(IterationExponent, ITERATION_EXP_LENGTH_BITS);
         prefixWriter.Write(GroupIndex, 4);
-        prefixWriter.Write((byte)(GroupThreshold - 1), 4);
-        prefixWriter.Write((byte)(GroupCount - 1), 4);
+        prefixWriter.Write(GroupThreshold - 1, 4);
+        prefixWriter.Write(GroupCount - 1, 4);
         prefixWriter.Write(MemberIndex, 4);
-        prefixWriter.Write((byte)(MemberThreshold - 1), 4);
+        prefixWriter.Write(MemberThreshold - 1, 4);
 
         int valueWordCount = (8 * Value.Length + RADIX_BITS - 1) / RADIX_BITS;
         int padding = valueWordCount * RADIX_BITS - Value.Length * 8;

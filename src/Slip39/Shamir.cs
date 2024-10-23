@@ -4,11 +4,10 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-
 namespace Slip39;
 
 /// <summary>
-/// A class for implementing Shamir's Secret Sharing with SLIP-39 enhancements.
+/// A class for implementing Shamir's Secret Sharing with SLIP-0039 enhancements.
 /// </summary>
 public class Shamir
 {
@@ -17,13 +16,13 @@ public class Shamir
     /// <summary>
     /// The data for a group or member share
     /// </summary>
-    /// <param name="MemberIndex">The group or member index</param>
+    /// <param name="Index">The group or member index</param>
     /// <param name="Value">The raw share value, as big endian bit/byte array.</param>
     /// <remarks>
     /// Since shares are guaranteed to consist of a number of 10-bit parts, the (Value.Length * 8) % 10
     /// least significant bits should be discarded.
     /// </remarks>
-    private record ShareData(int MemberIndex, byte[] Value);
+    private record ShareData(int Index, byte[] Value);
 
     private record CommonParameters(int Id, int IterationExponent, int GroupThreshold, Dictionary<int, List<MemberData>> Groups);
 
@@ -47,7 +46,7 @@ public class Shamir
             Generate(random, 1, [new Group(memberThreshold, memberCount)], seed, passphrase, iterationExponent, extendable);
 
     /// <summary>
-    /// Generates SLIP-39 shares from a given seed.
+    /// Generates SLIP-0039 shares from a given seed.
     /// </summary>
     /// <param name="groupThreshold">The number of groups required to reconstruct the secret.</param>
     /// <param name="groups">Array of tuples where each tuple represents (groupThreshold, shareCount) for each group.</param>
@@ -109,22 +108,22 @@ public class Shamir
             encryptedSecret);
 
         // Split each group share into member shares and create the final second level share objects
-        foreach (var (groupIndex, groupShare) in groupShares)
+        foreach (ShareData groupShare in groupShares)
         {
-            var (memberThreshold, count) = groups[groupIndex];
+            Group group = groups[groupShare.Index];
 
-            ShareData[] memberShares = SplitSecret(random, memberThreshold, count, groupShare);
-            foreach (var (memberIndex, value) in memberShares)
+            ShareData[] memberShares = SplitSecret(random, group.MemberThreshold, group.Count, groupShare.Value);
+            foreach (ShareData memberShare in memberShares)
             {
                 shares.Add(new Share(
                      id,
                      extendable,
                      iterationExponent,
-                     groupIndex,
+                     groupShare.Index,
                      new Group(groupThreshold, groups.Length),
-                     memberIndex,
-                     memberThreshold,
-                     value));
+                     memberShare.Index,
+                     group.MemberThreshold,
+                     memberShare.Value));
             }
         }
 
@@ -169,7 +168,7 @@ public class Shamir
         List<ShareData> groupSecrets = [];
         foreach (KeyValuePair<int, List<MemberData>> group in common.Groups)
         {
-            byte[] recoveredSecret = RecoverSecret(group.Value[0].MemberThreshold, group.Value.Select(v =>new ShareData(v.MemberIndex, v.Value)).ToArray());
+            byte[] recoveredSecret = RecoverSecret(group.Value[0].MemberThreshold, group.Value.Select(v => new ShareData(v.MemberIndex, v.Value)).ToArray());
             groupSecrets.Add(new ShareData(group.Key, recoveredSecret));
         }
 
@@ -344,7 +343,7 @@ public class Shamir
     /// <returns>The interpolated value.</returns>
     private static byte[] Interpolate(ShareData[] shares, int x)
     {
-        HashSet<int> xCoordinates = shares.Select(share => share.MemberIndex).ToHashSet();
+        HashSet<int> xCoordinates = shares.Select(share => share.Index).ToHashSet();
         if (xCoordinates.Count != shares.Length)
         {
             throw new ArgumentException("need unique shares for interpolation");
@@ -360,7 +359,7 @@ public class Shamir
         }
         if (xCoordinates.Contains(x))
         {
-            return shares.First(share => share.MemberIndex == x).Value;
+            return shares.First(share => share.Index == x).Value;
         }
 
         static int Mod255(int n)
@@ -370,20 +369,20 @@ public class Shamir
         }
 
         int logProd = shares
-            .Select(share => Log[share.MemberIndex ^ x])
+            .Select(share => Log[share.Index ^ x])
             .Aggregate(0, (a, v) => a + v);
 
         byte[] result = new byte[len];
-        foreach (var (i, share) in shares)
+        foreach (ShareData share in shares)
         {
             int logBasis = Mod255(
-                logProd - Log[i ^ x]
-                        - shares.Select(j => Log[j.MemberIndex ^ i]).Aggregate(0, (a, v) => a + v)
+                logProd - Log[share.Index ^ x]
+                        - shares.Select(j => Log[j.Index ^ share.Index]).Aggregate(0, (a, v) => a + v)
             );
 
-            for (int k = 0; k < share.Length; k++)
+            for (int k = 0; k < share.Value.Length; k++)
             {
-                result[k] ^= share[k] != 0 ? Exp[Mod255(Log[share[k]] + logBasis)] : (byte)0;
+                result[k] ^= share.Value[k] != 0 ? Exp[Mod255(Log[share.Value[k]] + logBasis)] : (byte)0;
             }
         }
 
