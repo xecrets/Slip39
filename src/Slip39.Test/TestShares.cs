@@ -85,7 +85,7 @@ public class TestShares
             {
                 foreach (var group2Subset in Combinations(groups[1].Shares, groups[1].MemberThreshold))
                 {
-                    var mnemonicSubset = Utils.Concat(group1Subset, group2Subset);
+                    var mnemonicSubset = group1Subset.Concat(group2Subset);
                     mnemonicSubset = [.. mnemonicSubset.OrderBy(x => Guid.NewGuid())];
                     Assert.Equal(MS, Shamir.Combine(mnemonicSubset));
                 }
@@ -96,7 +96,7 @@ public class TestShares
         Assert.Equal(MS, Shamir.Combine([mnemonics[2][3], mnemonics[3][0], mnemonics[2][4]]));
 
         Assert.Throws<ArgumentException>(() =>
-            Shamir.Combine(Utils.Concat(mnemonics[0][2..], mnemonics[1][..1]))
+            Shamir.Combine(mnemonics[0][2..].Concat(mnemonics[1][..1]))
         );
 
         Assert.Throws<ArgumentException>(() =>

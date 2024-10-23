@@ -301,7 +301,7 @@ public class Shamir
         random.GetBytes(randomPart);
 
         byte[] digest = ShareDigest(randomPart, sharedSecret);
-        baseShares.Add((DIGEST_INDEX, Utils.Concat(digest, randomPart)));
+        baseShares.Add((DIGEST_INDEX, digest.Concat(randomPart)));
         baseShares.Add((SECRET_INDEX, sharedSecret));
 
         for (int i = randomSharesCount; i < shareCount; i++)
@@ -401,14 +401,14 @@ public class Shamir
             byte[] f = Feistel(identifier, iterationExponent, i, right, passphrase, extendable);
             (left, right) = (right, Xor(left, f));
         }
-        return Utils.Concat(right, left);
+        return right.Concat(left);
     }
 
     private static byte[] Feistel(int id, int iterationExponent, byte step, byte[] block, string passphrase, bool extendable)
     {
-        byte[] key = Utils.Concat([step], Encoding.UTF8.GetBytes(passphrase));
-        byte[] saltPrefix = extendable ? [] : Utils.Concat("shamir"u8.ToArray(), [(byte)(id >> 8), (byte)(id & 0xff)]);
-        byte[] salt = Utils.Concat(saltPrefix, block);
+        byte[] key = step.Concat(Encoding.UTF8.GetBytes(passphrase));
+        byte[] saltPrefix = extendable ? [] : "shamir"u8.ToArray().Concat([(byte)(id >> 8), (byte)(id & 0xff)]);
+        byte[] salt = saltPrefix.Concat(block);
         int iters = (BASE_ITERATION_COUNT / ROUND_COUNT) << iterationExponent;
         using Rfc2898DeriveBytes pbkdf2 = new(key, salt, iters, HashAlgorithmName.SHA256);
         return pbkdf2.GetBytes(block.Length);

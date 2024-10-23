@@ -109,9 +109,9 @@ public class Share(
 
         byte[] prefixBytes = prefixWriter.ToByteArray();
         byte[] valueBytes = valueWriter.ToByteArray();
-        byte[] bytes = Utils.Concat(prefixBytes, valueBytes);
+        byte[] bytes = prefixBytes.Concat(valueBytes);
         int[] shareWords = BytesToWords(bytes);
-        int[] words = Utils.Concat(shareWords, [0, 0, 0]);
+        int[] words = shareWords.Concat([0, 0, 0]);
         int chk = Checksum(words, Extendable) ^ 1;
         int len = words.Length;
         for (int i = 0; i < 3; i++)
