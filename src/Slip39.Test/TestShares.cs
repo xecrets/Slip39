@@ -105,7 +105,7 @@ public class TestShares
 
         // Test all valid combinations of mnemonics.
         foreach ((Share[] shares, int memberThreshold)[] combinations in
-            Combinations(shareGroupings.Zip(groups.Select(g => g.MemberThreshold)), groupThreshold))
+            Combinations(shareGroupings.Zip(groups.Select(g => g.GroupThreshold)), groupThreshold))
         {
             foreach (Share[] group1Subset in Combinations(combinations[0].shares, combinations[0].memberThreshold))
             {
@@ -143,7 +143,7 @@ public class TestShares
         Share[] shares = Shamir.Generate(random, groupThreshold, groups, MS);
         Share[][] shareGroupings = shares.GroupBy(x => x.GroupIndex).Select(x => x.ToArray()).ToArray();
 
-        foreach ((Share[] groupShares, int memberThreshold) in shareGroupings.Zip(groups.Select(g => g.MemberThreshold)))
+        foreach ((Share[] groupShares, int memberThreshold) in shareGroupings.Zip(groups.Select(g => g.GroupThreshold)))
         {
             foreach (Share[] groupSubset in Combinations(groupShares, memberThreshold))
             {

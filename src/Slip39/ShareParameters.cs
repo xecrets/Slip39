@@ -28,8 +28,24 @@
 namespace Slip39;
 
 /// <summary>
-/// Defines the main parameter of a group.
+/// Defines the main parameters of a SLIP-0039 share.
 /// </summary>
-/// <param name="GroupThreshold">Member threshold for group i, a positive integer, 1 ≤ Ti ≤ Ni.</param>
-/// <param name="GroupCount">Total number of members in group i, a positive integer, 1 ≤ Ni ≤ 16.</param>
-public record Group(int GroupThreshold, int GroupCount);
+public readonly record struct ShareParameters()
+{
+    public int Id { get; }
+    public bool Extendable { get; }
+    public int IterationExponent { get; }
+    public int GroupIndex { get; }
+
+    /// <summary>
+    /// Group threshold (Gt) for group i, a positive integer, 1 ≤ Ti ≤ Ni.
+    /// </summary>
+    public int GroupThreshold { get; }
+    
+    /// <summary>
+    /// Total number of members (g) in group i, a positive integer, 1 ≤ Ni ≤ 16.
+    /// </summary>
+    public int GroupCount { get; }
+    public int MemberIndex { get; }
+    public int MemberThreshold { get; }
+}

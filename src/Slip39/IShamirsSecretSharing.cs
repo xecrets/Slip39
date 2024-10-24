@@ -1,9 +1,7 @@
 ﻿#region Copyright and MIT License
 /* MIT License
  *
- * Copyright © 2024 Lucas Ontivero
- * 
- * Modifications Copyright © 2024 Svante Seleborg
+ * Copyright © 2024 Svante Seleborg
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,9 +25,9 @@
 
 namespace Slip39;
 
-/// <summary>
-/// Defines the main parameter of a group.
-/// </summary>
-/// <param name="GroupThreshold">Member threshold for group i, a positive integer, 1 ≤ Ti ≤ Ni.</param>
-/// <param name="GroupCount">Total number of members in group i, a positive integer, 1 ≤ Ni ≤ 16.</param>
-public record Group(int GroupThreshold, int GroupCount);
+public interface IShamirsSecretSharing
+{
+    Share ShareFromMnemonic(string mnemonic);
+
+    Share CreateShare();
+}

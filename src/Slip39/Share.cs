@@ -46,6 +46,8 @@ public class Share
 
     public static int MinStrengthBits => MIN_STRENGTH_BITS;
 
+    public static int IdLengthBits => ID_LENGTH_BITS;
+
     public int Id { get; }
     public bool Extendable { get; }
     public int IterationExponent { get; }
@@ -56,24 +58,24 @@ public class Share
     public int MemberThreshold { get; }
     public byte[] Value { get; }
 
-    private Share(int id, bool extendable, int iterationExponent, int groupIndex, Group group,
+    private Share(int id, bool extendable, int iterationExponent, int groupIndex, int groupThreshold, int groupCount,
         int memberIndex, int memberThreshold, byte[] value)
     {
         Id = id;
         Extendable = extendable;
         IterationExponent = iterationExponent;
         GroupIndex = groupIndex;
-        GroupThreshold = group.MemberThreshold;
-        GroupCount = group.Count;
+        GroupThreshold = groupThreshold;
+        GroupCount = groupCount;
         MemberIndex = memberIndex;
         MemberThreshold = memberThreshold;
         Value = value;
     }
 
-    public static Share Create(int id, bool extendable, int iterationExponent, int groupIndex, Group group,
+    public static Share Create(int id, bool extendable, int iterationExponent, int groupIndex, int groupThreshold, int groupCount,
         int memberIndex, int memberThreshold, byte[] value)
     {
-        return new Share(id, extendable, iterationExponent, groupIndex, group, memberIndex, memberThreshold, value);
+        return new Share(id, extendable, iterationExponent, groupIndex, groupThreshold, groupCount, memberIndex, memberThreshold, value);
     }
 
     public static Share FromMnemonic(string mnemonic)
@@ -117,7 +119,8 @@ public class Share
             extendable: extendable,
             iterationExponent: prefixReader.Read(ITERATION_EXP_LENGTH_BITS),
             groupIndex: prefixReader.Read(4),
-            new Group(prefixReader.Read(4) + 1, prefixReader.Read(4) + 1),
+            groupThreshold: prefixReader.Read(4) + 1,
+            groupCount: prefixReader.Read(4) + 1,
             memberIndex: prefixReader.Read(4),
             memberThreshold: prefixReader.Read(4) + 1,
             value: [.. value]
@@ -159,11 +162,6 @@ public class Share
         }
 
         return string.Join(" ", words.Select(i => WordList.Words[i]));
-    }
-
-    public static int GenerateId(IRandom random)
-    {
-        return BitConverter.ToInt32(random.GetBytes(4)) % ((1 << (ID_LENGTH_BITS + 1)) - 1);
     }
 
     private static int[] BytesToWords(byte[] bytes)

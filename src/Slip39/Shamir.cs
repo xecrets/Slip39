@@ -107,17 +107,17 @@ public static class Shamir
             throw new ArgumentException("group threshold should not exceed number of groups");
         }
 
-        if (groups.Any(group => group is { MemberThreshold: 1, Count: > 1 }))
+        if (groups.Any(group => group is { GroupThreshold: 1, GroupCount: > 1 }))
         {
             throw new ArgumentException("can only generate one share for threshold = 1");
         }
 
-        if (groups.Any(group => group.MemberThreshold > group.Count))
+        if (groups.Any(group => group.GroupThreshold > group.GroupCount))
         {
             throw new ArgumentException("number of shares must not be less than threshold");
         }
 
-        int id = Share.GenerateId(random);
+        int id = GenerateId(random);
 
         // Encrypt the secret using the passphrase and identifier
         byte[] encryptedSecret = Encrypt(id, iterationExponent, secret, passphrase, extendable);
@@ -135,7 +135,7 @@ public static class Shamir
         {
             Group group = groups[groupShare.Index];
 
-            ShareData[] memberShares = SplitSecret(random, group.MemberThreshold, group.Count, groupShare.Value);
+            ShareData[] memberShares = SplitSecret(random, group.GroupThreshold, group.GroupCount, groupShare.Value);
             foreach (ShareData memberShare in memberShares)
             {
                 shares.Add(Share.Create(
@@ -143,14 +143,20 @@ public static class Shamir
                      extendable,
                      iterationExponent,
                      groupShare.Index,
-                     new Group(groupThreshold, groups.Length),
+                     groupThreshold,
+                     groups.Length,
                      memberShare.Index,
-                     group.MemberThreshold,
+                     group.GroupThreshold,
                      memberShare.Value));
             }
         }
 
         return [.. shares];
+    }
+
+    private static int GenerateId(IRandom random)
+    {
+        return BitConverter.ToInt32(random.GetBytes(4)) % ((1 << (Share.IdLengthBits + 1)) - 1);
     }
 
     /// <summary>
