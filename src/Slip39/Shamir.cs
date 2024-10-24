@@ -185,38 +185,38 @@ public static class Shamir
     {
         if (shares.Length < 1)
         {
-            throw new ArgumentException("need at least one share to reconstruct secret");
+            throw new ArgumentException("Need at least one share to reconstruct secret.");
         }
 
         // Ensure all shares belong to the same secret
         HashSet<int> identifiers = shares.Select(s => s.Id).ToHashSet();
         if (identifiers.Count > 1)
         {
-            throw new ArgumentException("shares do not belong to the same secret");
+            throw new ArgumentException("Shares do not belong to the same secret.");
         }
 
         // Ensure all shares have the same iteration exponent, group threshold, and group count
         HashSet<int> iterationExponents = shares.Select(s => s.IterationExponent).ToHashSet();
         if (iterationExponents.Count > 1)
         {
-            throw new ArgumentException("shares do not have the same iteration exponent");
+            throw new ArgumentException("Shares do not have the same iteration exponent.");
         }
 
         HashSet<int> groupThresholds = shares.Select(s => s.GroupThreshold).ToHashSet();
         if (groupThresholds.Count > 1)
         {
-            throw new ArgumentException("shares do not have the same group threshold");
+            throw new ArgumentException("Shares do not have the same group threshold.");
         }
 
         HashSet<int> groupCounts = shares.Select(s => s.GroupCount).ToHashSet();
         if (groupCounts.Count > 1)
         {
-            throw new ArgumentException("shares do not have the same group count");
+            throw new ArgumentException("Shares do not have the same group count.");
         }
 
         if (shares.Any(s => s.GroupThreshold > s.GroupCount))
         {
-            throw new ArgumentException("greater group threshold than group counts");
+            throw new ArgumentException("Group threshold is greater than group count.");
         }
 
         // Group the shares by group index
@@ -258,7 +258,7 @@ public static class Shamir
         // Verify the share digest. (poor-man constant-time comparison)
         return BitConverter.ToUInt32(ShareDigest(digestShare[DIGEST_LENGTH_BYTES..], sharedSecret)) !=
             BitConverter.ToUInt32(digestShare.AsSpan()[..DIGEST_LENGTH_BYTES])
-                ? throw new ArgumentException("share digest incorrect")
+                ? throw new ArgumentException("Share digest is incorrect.")
                 : sharedSecret;
     }
     /// <summary>
@@ -274,17 +274,17 @@ public static class Shamir
     {
         if (threshold < 1)
         {
-            throw new ArgumentException("sharing threshold must be > 1");
+            throw new ArgumentException("Sharing threshold must be > 1.");
         }
 
         if (shareCount > MAX_SHARE_COUNT)
         {
-            throw new ArgumentException("too many shares");
+            throw new ArgumentException("Too many shares.");
         }
 
         if (threshold > shareCount)
         {
-            throw new ArgumentException("number of shares should be at least equal threshold");
+            throw new ArgumentException("Number of shares should be at least equal to threshold.");
         }
 
         List<ShareData> shares = [];
@@ -342,16 +342,16 @@ public static class Shamir
         HashSet<int> xCoordinates = shares.Select(share => share.Index).ToHashSet();
         if (xCoordinates.Count != shares.Length)
         {
-            throw new ArgumentException("need unique shares for interpolation");
+            throw new ArgumentException("Need unique shares for interpolation.");
         }
         if (shares.Length < 1)
         {
-            throw new ArgumentException("need at least one share for interpolation");
+            throw new ArgumentException("Need at least one share for interpolation.");
         }
         int len = shares[0].Value.Length;
         if (shares.Any(share => share.Value.Length != len))
         {
-            throw new ArgumentException("shares should have equal length");
+            throw new ArgumentException("Shares should have equal length.");
         }
         if (xCoordinates.Contains(x))
         {
@@ -393,7 +393,7 @@ public static class Shamir
 
     private static string CheckPassphrase(string passphrase) =>
         passphrase.Any(Char.IsControl)
-            ? throw new NotSupportedException("Passphrase should only contain printable ASCII.")
+            ? throw new NotSupportedException("Passphrase can only contain printable ASCII.")
             : passphrase;
 
     private static byte[] Crypt(

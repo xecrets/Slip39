@@ -8,14 +8,14 @@ namespace Slip39;
 
 public static class WordList
 {
-    public static readonly string[] Words;
+    public static string[] Words { get; }
 
-    private static readonly Dictionary<string, int> WordIndexMap;
+    private static readonly Dictionary<string, int> _wordIndexMap;
 
     static WordList()
     {
         Words = LoadWordlist();
-        WordIndexMap = Words
+        _wordIndexMap = Words
             .Select((word, i) => (word, i ))
             .ToDictionary(t => t.word, t => t.i);
     }
@@ -34,12 +34,12 @@ public static class WordList
         try
         {
             return mnemonic.Split()
-                           .Select(word => WordIndexMap[word.ToLower()])
+                           .Select(word => _wordIndexMap[word.ToLower()])
                            .ToArray();
         }
         catch (KeyNotFoundException keyError)
         {
-            throw new MnemonicException($"Invalid mnemonic word {keyError.Message}.", keyError);
+            throw new Slip39Exception($"Invalid mnemonic word {keyError.Message}.", keyError);
         }
     }
 }
